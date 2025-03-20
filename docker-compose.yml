@@ -1,0 +1,33 @@
+services:
+  psql:
+    image: postgres:latest
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - psql_volume:/var/lib/postgresql/data
+  service:
+    build:
+        dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - psql
+    environment:
+      DB_SCHEMA: ${DB_SCHEMA}
+      DB_HOST: psql
+      DB_PORT: ${DB_PORT}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+
+volumes:
+  psql_volume:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ./db
