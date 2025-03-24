@@ -18,12 +18,18 @@ import (
 
 	"github.com/caarlos0/env/v11"
 	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 )
 
 type Config struct {
-	DB   database.Config `envPrefix:"DB_"`
-	Rest rest.Config     `envPrefix:"REST_"`
+	DB    database.Config `envPrefix:"DB_"`
+	Rest  rest.Config     `envPrefix:"REST_"`
+	Redis struct {
+		Host     string `env:"HOST"`
+		Port     string `env:"PORT"`
+		Password string `env:"PASSWORD"`
+	} `envPrefix:"REDIS_"`
 
 	HashSalt string `env:"HASH_SALT"`
 }
@@ -48,6 +54,16 @@ func main() {
 	_, err := database.New(cfg.DB)
 	if err != nil {
 		logrus.Fatal("Error initializing database: ", err)
+	}
+
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     cfg.Redis.Host + ":" + cfg.Redis.Port,
+		Password: cfg.Redis.Password,
+		DB:       0,
+	})
+
+	if err := rdb.Ping(context.Background()).Err(); err != nil {
+		logrus.Fatal("Error initializing redis: ", err)
 	}
 
 	_ = hash.NewHasher(cfg.HashSalt)
@@ -75,6 +91,16 @@ func main() {
 			logrus.WithFields(logrus.Fields{
 				"error": err,
 			}).Error("Error stopping server")
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := rdb.Close(); err != nil {
+			logrus.WithFields(logrus.Fields{
+				"error": err,
+			}).Error("Error stopping redis")
 		}
 	}()
 
