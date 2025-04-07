@@ -1,7 +1,12 @@
 package database
 
-import "gorm.io/gorm"
+import (
+	"errors"
+
+	"gorm.io/gorm"
+)
 
 var (
 	ErrRecordNotFound = gorm.ErrRecordNotFound
+	ErrTransactionNil = errors.New("transaction is nil")
 )
