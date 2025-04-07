@@ -6,8 +6,8 @@ import (
 )
 
 type Hasher interface {
-	Hash(password string) string
-	Compare(hashedPassword, password string) error
+	Hash(s string) string
+	Compare(hashedString, s string) bool
 }
 
 type Hash struct {
@@ -20,17 +20,13 @@ func NewHasher(salt string) *Hash {
 	}
 }
 
-func (h *Hash) Hash(password string) string {
+func (h *Hash) Hash(s string) string {
 	hash := sha256.New()
-	hash.Write([]byte(password))
+	hash.Write([]byte(s))
 
 	return fmt.Sprintf("%x", hash.Sum(h.salt))
 }
 
-func (h *Hash) Compare(hashedPassword, password string) error {
-	if hashedPassword != h.Hash(password) {
-		return fmt.Errorf("invalid password")
-	}
-
-	return nil
+func (h *Hash) Compare(hashedString, s string) bool {
+	return hashedString == h.Hash(s)
 }
