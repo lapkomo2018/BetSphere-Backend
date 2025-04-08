@@ -15,6 +15,8 @@ import (
 	"stavki/external/hash"
 	"stavki/internal/database"
 	"stavki/internal/rest"
+	v1 "stavki/internal/rest/v1"
+	"stavki/internal/service"
 
 	"github.com/caarlos0/env/v11"
 	"github.com/joho/godotenv"
@@ -31,7 +33,8 @@ type Config struct {
 		Password string `env:"PASSWORD"`
 	} `envPrefix:"REDIS_"`
 
-	HashSalt string `env:"HASH_SALT"`
+	HashSalt  string `env:"HASH_SALT"`
+	JWTSecret string `env:"JWT_SECRET"`
 }
 
 func main() {
@@ -51,10 +54,13 @@ func main() {
 		logrus.Fatal("Error parsing environment variables: ", err)
 	}
 
-	_, err := database.New(cfg.DB)
+	db, err := database.New(cfg.DB)
 	if err != nil {
 		logrus.Fatal("Error initializing database: ", err)
 	}
+
+	userDB := database.NewUser(db, nil)
+	jwtDB := database.NewJWT(db, nil)
 
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     cfg.Redis.Host + ":" + cfg.Redis.Port,
@@ -66,9 +72,20 @@ func main() {
 		logrus.Fatal("Error initializing redis: ", err)
 	}
 
-	_ = hash.NewHasher(cfg.HashSalt)
+	authService, err := service.NewAuth(jwtDB, []byte(cfg.JWTSecret))
+	if err != nil {
+		logrus.Fatal("Error initializing auth service: ", err)
+	}
 
-	srv := rest.New(&cfg.Rest).Init()
+	userService, err := service.NewUser(userDB, rdb, hash.NewHasher(cfg.HashSalt), authService)
+	if err != nil {
+		logrus.Fatal("Error initializing user service: ", err)
+	}
+
+	srv := rest.New(&cfg.Rest).Init(v1.Config{
+		UserService: userService,
+		AuthService: authService,
+	})
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

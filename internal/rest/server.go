@@ -39,8 +39,8 @@ func New(cfg *Config) *Server {
 	}
 }
 
-func (s *Server) Init() *http.Server {
-	v1.New().
+func (s *Server) Init(cfgV1 v1.Config) *http.Server {
+	v1.New(cfgV1).
 		Init(s.gin.Group("/v1"))
 
 	return &http.Server{

@@ -1,14 +1,29 @@
 package v1
 
-import "github.com/gin-gonic/gin"
+import (
+	"stavki/internal/service"
 
-type Handler struct {
-}
+	"github.com/gin-gonic/gin"
+)
 
-func New() *Handler {
-	return &Handler{}
+type (
+	Handler struct {
+		userService *service.User
+		authService *service.Auth
+	}
+	Config struct {
+		UserService *service.User
+		AuthService *service.Auth
+	}
+)
+
+func New(cfg Config) *Handler {
+	return &Handler{
+		userService: cfg.UserService,
+		authService: cfg.AuthService,
+	}
 }
 
 func (h *Handler) Init(group *gin.RouterGroup) {
-
+	h.initAuth(group.Group("/auth"))
 }
