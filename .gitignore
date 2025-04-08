@@ -4,4 +4,3 @@ tmp
 *.log
 *.exe
 db
-redis
