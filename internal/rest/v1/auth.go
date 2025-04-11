@@ -41,7 +41,7 @@ func (h *Handler) login(c *gin.Context) {
 		AccessToken:  pair.AccessToken.Token,
 		RefreshToken: pair.RefreshToken.Token,
 	})
-	c.SetCookie("Authorization", pair.AccessToken.Token, int(pair.AccessToken.ExpiresAt.Sub(time.Now()).Seconds()), "/", "", false, true)
+	c.SetCookie("Authorization", "Bearer:"+pair.AccessToken.Token, int(pair.AccessToken.ExpiresAt.Sub(time.Now()).Seconds()), "/", "", false, true)
 }
 
 func (h *Handler) register(c *gin.Context) {
@@ -71,7 +71,7 @@ func (h *Handler) register(c *gin.Context) {
 			RefreshToken: pair.RefreshToken.Token,
 		},
 	})
-	c.SetCookie("Authorization", pair.AccessToken.Token, int(pair.AccessToken.ExpiresAt.Sub(time.Now()).Seconds()), "/", "", false, true)
+	c.SetCookie("Authorization", "Bearer:"+pair.AccessToken.Token, int(pair.AccessToken.ExpiresAt.Sub(time.Now()).Seconds()), "/", "", false, true)
 }
 
 func (h *Handler) refresh(c *gin.Context) {
@@ -93,7 +93,7 @@ func (h *Handler) refresh(c *gin.Context) {
 		AccessToken:  pair.AccessToken.Token,
 		RefreshToken: pair.RefreshToken.Token,
 	})
-	c.SetCookie("Authorization", pair.AccessToken.Token, int(pair.AccessToken.ExpiresAt.Sub(time.Now()).Seconds()), "/", "", false, true)
+	c.SetCookie("Authorization", "Bearer:"+pair.AccessToken.Token, int(pair.AccessToken.ExpiresAt.Sub(time.Now()).Seconds()), "/", "", false, true)
 }
 
 func (h *Handler) logout(c *gin.Context) {
