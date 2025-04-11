@@ -1,28 +1,56 @@
 package database
 
 import (
-	"database/sql"
 	"errors"
-	"fmt"
 
 	"gorm.io/gorm"
 )
 
-type Transaction struct {
-	*gorm.DB
+type (
+	TransactionProvider interface {
+		Transact(txFunc func(Adapters) error) error
+	}
+	transactionProvider struct {
+		db *gorm.DB
+	}
+	Adapters struct {
+		UserRepository *UserRepository
+		JWTRepository  *JWTRepository
+	}
+)
+
+func NewTransactionProvider(db *gorm.DB) TransactionProvider {
+	return &transactionProvider{
+		db: db,
+	}
 }
 
-func (tx *Transaction) EnsureRollback() {
-	defer func() {
-		if err := recover(); err != nil {
-			tx.Rollback()
-			panic(err)
+func (p *transactionProvider) Transact(txFunc func(adapters Adapters) error) error {
+	return runInTx(p.db, func(tx *gorm.DB) error {
+		adapters := Adapters{
+			UserRepository: NewUserRepository(tx),
+			JWTRepository:  NewJWTRepository(tx),
 		}
-	}()
 
-	if err := tx.Rollback().Error; err != nil {
-		if !errors.Is(err, sql.ErrTxDone) {
-			panic(fmt.Sprintf("failed to rollback transaction: %v", err))
-		}
+		return txFunc(adapters)
+	})
+}
+
+func runInTx(db *gorm.DB, fn func(tx *gorm.DB) error) error {
+	tx := db.Begin()
+	if tx.Error != nil {
+		return tx.Error
 	}
+
+	err := fn(tx)
+	if err == nil {
+		return tx.Commit().Error
+	}
+
+	rollbackErr := tx.Rollback().Error
+	if rollbackErr != nil {
+		return errors.Join(err, rollbackErr)
+	}
+
+	return err
 }

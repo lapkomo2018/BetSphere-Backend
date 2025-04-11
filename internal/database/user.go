@@ -4,88 +4,34 @@ import (
 	"context"
 
 	"stavki/internal/model"
+
+	"gorm.io/gorm"
 )
 
-type User struct {
-	*Base[User]
+type UserRepository struct {
+	db *gorm.DB
 }
 
-func NewUser(db Database, tx *Transaction) *User {
-	return &User{
-		Base: NewBase[User](db, tx, NewUser),
+func NewUserRepository(db *gorm.DB) *UserRepository {
+	return &UserRepository{
+		db: db,
 	}
 }
 
-func (u *User) Create(ctx context.Context, user *model.User) (*model.User, error) {
-	tx := u.tx
-	if tx == nil {
-		tx = u.db.TransactionWithContext(ctx)
-		defer tx.EnsureRollback()
-	}
-
-	if err := tx.Create(user).Error; err != nil {
-		return user, err
-	}
-
-	if u.tx == nil {
-		return user, tx.Commit().Error
-	}
-
-	return user, nil
+func (u *UserRepository) Create(ctx context.Context, user *model.User) (*model.User, error) {
+	return user, u.db.WithContext(ctx).Create(user).Error
 }
 
-func (u *User) Get(ctx context.Context, id uint64) (*model.User, error) {
-	tx := u.tx
-	if tx == nil {
-		tx = u.db.TransactionWithContext(ctx)
-		defer tx.EnsureRollback()
-	}
-
+func (u *UserRepository) Get(ctx context.Context, id uint64) (*model.User, error) {
 	var user model.User
-	if err := tx.Where("id = ?", id).First(&user).Error; err != nil {
-		return &user, err
-	}
-
-	if u.tx == nil {
-		return &user, tx.Commit().Error
-	}
-
-	return &user, nil
+	return &user, u.db.WithContext(ctx).Where("id = ?", id).First(&user).Error
 }
 
-func (u *User) GetByLogin(ctx context.Context, login string) (*model.User, error) {
-	tx := u.tx
-	if tx == nil {
-		tx = u.db.TransactionWithContext(ctx)
-		defer tx.EnsureRollback()
-	}
-
+func (u *UserRepository) GetByLogin(ctx context.Context, login string) (*model.User, error) {
 	var user model.User
-	if err := tx.Where("username = ? OR email = ?", login, login).First(&user).Error; err != nil {
-		return &user, err
-	}
-
-	if u.tx == nil {
-		return &user, tx.Commit().Error
-	}
-
-	return &user, nil
+	return &user, u.db.WithContext(ctx).Where("username = ? OR email = ?", login, login).First(&user).Error
 }
 
-func (u *User) Save(ctx context.Context, user *model.User) (*model.User, error) {
-	tx := u.tx
-	if tx == nil {
-		tx = u.db.TransactionWithContext(ctx)
-		defer tx.EnsureRollback()
-	}
-
-	if err := tx.Save(user).Error; err != nil {
-		return user, err
-	}
-
-	if u.tx == nil {
-		return user, tx.Commit().Error
-	}
-
-	return user, nil
+func (u *UserRepository) Save(ctx context.Context, user *model.User) (*model.User, error) {
+	return user, u.db.WithContext(ctx).Save(user).Error
 }

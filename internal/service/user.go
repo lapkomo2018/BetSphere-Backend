@@ -15,30 +15,28 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type User struct {
-	userDB *database.User
-	rdb    *redis.Client
-	hasher hash.Hasher
-	auth   *Auth
+type UserService struct {
+	txProvider database.TransactionProvider
+	userDB     *database.UserRepository
+	rdb        *redis.Client
+	hasher     hash.Hasher
+	auth       *Auth
 }
 
-// NewUser creates a new User service instance.
+// NewUser creates a new UserService service instance.
 // UserDB must not have an active transaction.
-func NewUser(userDB *database.User, rdb *redis.Client, h hash.Hasher, a *Auth) (*User, error) {
-	if userDB.HasTx() {
-		return nil, errors.New("userDB has transaction")
-	}
-
-	return &User{
-		userDB: userDB,
-		rdb:    rdb,
-		hasher: h,
-		auth:   a,
+func NewUser(txProvider database.TransactionProvider, userDB *database.UserRepository, rdb *redis.Client, h hash.Hasher, a *Auth) (*UserService, error) {
+	return &UserService{
+		txProvider: txProvider,
+		userDB:     userDB,
+		rdb:        rdb,
+		hasher:     h,
+		auth:       a,
 	}, nil
 }
 
 // Register registers a new user in the database.
-func (u *User) Register(ctx context.Context, username, email, password string) (*model.User, model.TokenPair, error) {
+func (u *UserService) Register(ctx context.Context, username, email, password string) (*model.User, model.TokenPair, error) {
 	user := &model.User{
 		Username: username,
 		Email:    email,
@@ -65,7 +63,7 @@ func (u *User) Register(ctx context.Context, username, email, password string) (
 }
 
 // Login logs in a user and returns the user and token pair.
-func (u *User) Login(ctx context.Context, login, password string) (*model.User, model.TokenPair, error) {
+func (u *UserService) Login(ctx context.Context, login, password string) (*model.User, model.TokenPair, error) {
 	user, err := u.userDB.GetByLogin(ctx, login)
 	if err != nil {
 		return nil, model.TokenPair{}, err
@@ -87,7 +85,7 @@ func (u *User) Login(ctx context.Context, login, password string) (*model.User, 
 	return user, pair, nil
 }
 
-func (u *User) Get(ctx context.Context, id uint64) (*model.User, error) {
+func (u *UserService) Get(ctx context.Context, id uint64) (*model.User, error) {
 	user, err := u.getUserFromCache(ctx, id)
 	if err == nil {
 		return user, nil
@@ -107,7 +105,7 @@ func (u *User) Get(ctx context.Context, id uint64) (*model.User, error) {
 	return user, nil
 }
 
-func (u *User) cacheUser(ctx context.Context, user *model.User) {
+func (u *UserService) cacheUser(ctx context.Context, user *model.User) {
 	userJSON, err := json.Marshal(user)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
@@ -126,7 +124,7 @@ func (u *User) cacheUser(ctx context.Context, user *model.User) {
 	}
 }
 
-func (u *User) getUserFromCache(ctx context.Context, id uint64) (*model.User, error) {
+func (u *UserService) getUserFromCache(ctx context.Context, id uint64) (*model.User, error) {
 	key := fmt.Sprintf("user:%d", id)
 	userCache, err := u.rdb.Get(ctx, key).Result()
 	if err != nil {

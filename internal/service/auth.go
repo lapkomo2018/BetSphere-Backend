@@ -13,8 +13,9 @@ import (
 
 type (
 	Auth struct {
-		jwtDB  *database.JWT
-		jwtKey []byte
+		txProvider database.TransactionProvider
+		jwtDB      *database.JWTRepository
+		jwtKey     []byte
 	}
 )
 
@@ -30,14 +31,11 @@ var (
 
 // NewAuth creates a new Auth service instance.
 // JWT_DB must not have an active transaction.
-func NewAuth(jwtDB *database.JWT, jwtKey []byte) (*Auth, error) {
-	if jwtDB.HasTx() {
-		return nil, errors.New("jwtDB has transaction")
-	}
-
+func NewAuth(txProvider database.TransactionProvider, jwtDB *database.JWTRepository, jwtKey []byte) (*Auth, error) {
 	return &Auth{
-		jwtDB:  jwtDB,
-		jwtKey: jwtKey,
+		txProvider: txProvider,
+		jwtDB:      jwtDB,
+		jwtKey:     jwtKey,
 	}, nil
 }
 
@@ -105,41 +103,41 @@ func (a *Auth) RefreshJWT(ctx context.Context, refreshToken string) (model.Token
 		return model.TokenPair{}, ErrInvalidToken
 	}
 
-	tx := a.jwtDB.BeginWithCtx(ctx)
-	defer tx.EnsureRollback()
+	var newPair model.TokenPair
+	return newPair, a.txProvider.Transact(func(adapters database.Adapters) error {
+		// Check if the refresh token is in the database
+		jwtSession, err := adapters.JWTRepository.Get(ctx, refreshToken)
+		if err != nil {
+			return err
+		}
 
-	// Check if the refresh token is in the database
-	jwtSession, err := tx.Get(ctx, refreshToken)
-	if err != nil {
-		return model.TokenPair{}, err
-	}
+		// Check if the user ID in the token matches the user ID in the database
+		if jwtSession.UserID != uint64(claims["sub"].(float64)) {
+			return errors.New("user ID mismatch")
+		}
 
-	// Check if the user ID in the token matches the user ID in the database
-	if jwtSession.UserID != uint64(claims["sub"].(float64)) {
-		return model.TokenPair{}, errors.New("user ID mismatch")
-	}
+		// Generate a new access token and refresh token pair
+		newPair, err = a.createTokenPair(jwtSession.UserID)
+		if err != nil {
+			return err
+		}
 
-	// Generate a new access token and refresh token pair
-	newPair, err := a.createTokenPair(jwtSession.UserID)
-	if err != nil {
-		return model.TokenPair{}, err
-	}
+		// Update the refresh token in the database
+		if err := adapters.JWTRepository.Delete(ctx, refreshToken); err != nil {
+			return err
+		}
 
-	// Update the refresh token in the database
-	if err := tx.Delete(ctx, refreshToken); err != nil {
-		return model.TokenPair{}, err
-	}
+		if _, err := adapters.JWTRepository.Create(ctx, &model.JWT{
+			RefreshToken: newPair.RefreshToken.Token,
+			UserID:       jwtSession.UserID,
+			ExpiresAt:    newPair.RefreshToken.ExpiresAt,
+			CreatedAt:    time.Now(),
+		}); err != nil {
+			return err
+		}
 
-	if _, err := tx.Create(ctx, &model.JWT{
-		RefreshToken: newPair.RefreshToken.Token,
-		UserID:       jwtSession.UserID,
-		ExpiresAt:    newPair.RefreshToken.ExpiresAt,
-		CreatedAt:    time.Now(),
-	}); err != nil {
-		return model.TokenPair{}, err
-	}
-
-	return newPair, tx.Commit()
+		return nil
+	})
 }
 
 // LogoutJWT logs out the user by deleting the refresh token from the database.

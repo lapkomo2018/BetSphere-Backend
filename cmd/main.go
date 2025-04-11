@@ -54,13 +54,14 @@ func main() {
 		logrus.Fatal("Error parsing environment variables: ", err)
 	}
 
-	db, err := database.New(cfg.DB)
+	db, err := database.Connect(cfg.DB)
 	if err != nil {
 		logrus.Fatal("Error initializing database: ", err)
 	}
 
-	userDB := database.NewUser(db, nil)
-	jwtDB := database.NewJWT(db, nil)
+	txProvider := database.NewTransactionProvider(db)
+	userDB := database.NewUserRepository(db)
+	jwtDB := database.NewJWTRepository(db)
 
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     cfg.Redis.Host + ":" + cfg.Redis.Port,
@@ -72,12 +73,12 @@ func main() {
 		logrus.Fatal("Error initializing redis: ", err)
 	}
 
-	authService, err := service.NewAuth(jwtDB, []byte(cfg.JWTSecret))
+	authService, err := service.NewAuth(txProvider, jwtDB, []byte(cfg.JWTSecret))
 	if err != nil {
 		logrus.Fatal("Error initializing auth service: ", err)
 	}
 
-	userService, err := service.NewUser(userDB, rdb, hash.NewHasher(cfg.HashSalt), authService)
+	userService, err := service.NewUser(txProvider, userDB, rdb, hash.NewHasher(cfg.HashSalt), authService)
 	if err != nil {
 		logrus.Fatal("Error initializing user service: ", err)
 	}
