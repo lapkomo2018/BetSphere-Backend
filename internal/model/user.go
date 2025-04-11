@@ -7,6 +7,7 @@ type User struct {
 	Email     string    `gorm:"unique" json:"email"`
 	Username  string    `gorm:"unique" json:"username"`
 	Password  string    `gorm:"" json:"-"`
+	Balance   float64   `gorm:"type:decimal(10,2)" json:"balance"`
 	Admin     bool      `gorm:"default:false" json:"admin"`
 	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`
