@@ -8,11 +8,11 @@ import (
 
 type (
 	Handler struct {
-		userService *service.User
+		userService *service.UserService
 		authService *service.Auth
 	}
 	Config struct {
-		UserService *service.User
+		UserService *service.UserService
 		AuthService *service.Auth
 	}
 )

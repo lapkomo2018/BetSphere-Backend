@@ -1,7 +1,6 @@
 package database
 
 import (
-	"context"
 	"fmt"
 
 	"stavki/internal/model"
@@ -12,15 +11,6 @@ import (
 )
 
 type (
-	Database interface {
-		Transaction() *Transaction
-		TransactionWithContext(ctx context.Context) *Transaction
-	}
-
-	database struct {
-		db *gorm.DB
-	}
-
 	Config struct {
 		// Host is the database host.
 		Host string `env:"HOST"`
@@ -37,7 +27,7 @@ type (
 	}
 )
 
-func New(cfg Config) (Database, error) {
+func Connect(cfg Config) (*gorm.DB, error) {
 	// Create the database connection.
 	dsn := fmt.Sprintf("host=%s port=%s user=%s dbname=%s password=%s search_path=%s sslmode=disable", cfg.Host, cfg.Port, cfg.User, cfg.Name, cfg.Password, cfg.Schema)
 
@@ -53,19 +43,5 @@ func New(cfg Config) (Database, error) {
 		return nil, err
 	}
 
-	return &database{
-		db: db,
-	}, nil
-}
-
-func (db *database) Transaction() *Transaction {
-	return &Transaction{
-		DB: db.db.Begin(),
-	}
-}
-
-func (db *database) TransactionWithContext(ctx context.Context) *Transaction {
-	return &Transaction{
-		DB: db.db.Begin().WithContext(ctx),
-	}
+	return db, nil
 }

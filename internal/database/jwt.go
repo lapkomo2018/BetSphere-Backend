@@ -4,69 +4,29 @@ import (
 	"context"
 
 	"stavki/internal/model"
+
+	"gorm.io/gorm"
 )
 
-type JWT struct {
-	*Base[JWT]
+type JWTRepository struct {
+	db *gorm.DB
 }
 
-func NewJWT(db Database, tx *Transaction) *JWT {
-	return &JWT{
-		Base: NewBase[JWT](db, tx, NewJWT),
+func NewJWTRepository(db *gorm.DB) *JWTRepository {
+	return &JWTRepository{
+		db: db,
 	}
 }
 
-func (j *JWT) Create(ctx context.Context, jwt *model.JWT) (*model.JWT, error) {
-	tx := j.tx
-	if tx == nil {
-		tx = j.db.TransactionWithContext(ctx)
-		defer tx.EnsureRollback()
-	}
-
-	if err := tx.Create(jwt).Error; err != nil {
-		return jwt, err
-	}
-
-	if j.tx == nil {
-		return jwt, tx.Commit().Error
-	}
-
-	return jwt, nil
+func (j *JWTRepository) Create(ctx context.Context, jwt *model.JWT) (*model.JWT, error) {
+	return jwt, j.db.WithContext(ctx).Create(jwt).Error
 }
 
-func (j *JWT) Get(ctx context.Context, token string) (*model.JWT, error) {
-	tx := j.tx
-	if tx == nil {
-		tx = j.db.TransactionWithContext(ctx)
-		defer tx.EnsureRollback()
-	}
-
+func (j *JWTRepository) Get(ctx context.Context, token string) (*model.JWT, error) {
 	var jwt model.JWT
-	if err := tx.Where("refresh_token = ?", token).First(&jwt).Error; err != nil {
-		return &jwt, err
-	}
-
-	if j.tx == nil {
-		return &jwt, tx.Commit().Error
-	}
-
-	return &jwt, nil
+	return &jwt, j.db.WithContext(ctx).Where("refresh_token = ?", token).First(&jwt).Error
 }
 
-func (j *JWT) Delete(ctx context.Context, token string) error {
-	tx := j.tx
-	if tx == nil {
-		tx = j.db.TransactionWithContext(ctx)
-		defer tx.EnsureRollback()
-	}
-
-	if err := tx.Where("refresh_token = ?", token).Delete(&model.JWT{}).Error; err != nil {
-		return err
-	}
-
-	if j.tx == nil {
-		return tx.Commit().Error
-	}
-
-	return nil
+func (j *JWTRepository) Delete(ctx context.Context, token string) error {
+	return j.db.WithContext(ctx).Where("refresh_token = ?", token).Delete(&model.JWT{}).Error
 }
