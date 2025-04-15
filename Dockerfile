@@ -7,11 +7,11 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 go build -o /app ./cmd/main.go
+RUN CGO_ENABLED=0 go build -o /app/main ./cmd/main.go
 
 FROM alpine:latest
 
-COPY --from=builder app .
+COPY --from=builder /app/main /app/main
 
 ENV ENV=production
 
@@ -19,4 +19,4 @@ RUN adduser -D user
 
 USER user
 
-CMD ["/app"]
+CMD ["/app/main"]
