@@ -26,10 +26,13 @@ services:
     build:
         dockerfile: Dockerfile
     restart: unless-stopped
+    ports:
+      - "${REST_PORT}:8080"
     depends_on:
       - psql
       - redis
     environment:
+      REST_PORT: ${REST_PORT}
       DB_SCHEMA: ${DB_SCHEMA}
       DB_HOST: psql
       DB_PORT: ${DB_PORT}
