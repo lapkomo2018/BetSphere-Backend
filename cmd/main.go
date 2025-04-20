@@ -83,9 +83,12 @@ func main() {
 		logrus.Fatal("Error initializing user service: ", err)
 	}
 
+	chatService := service.NewChatService(database.NewMessageRepository(db), userService)
+
 	srv := rest.New(&cfg.Rest).Init(v1.Config{
 		UserService: userService,
 		AuthService: authService,
+		ChatService: chatService,
 	})
 
 	go func() {

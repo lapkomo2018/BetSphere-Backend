@@ -5,5 +5,6 @@ func Migrate() []interface{} {
 	return []interface{}{
 		&User{},
 		&JWT{},
+		&Message{},
 	}
 }
