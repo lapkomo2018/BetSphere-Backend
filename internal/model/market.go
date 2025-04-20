@@ -7,15 +7,16 @@ import (
 
 type (
 	Market struct {
-		ID          uint64      `json:"id"`
-		EventID     uint64      `json:"event_id"`
-		Title       string      `json:"title"`
-		Chances     float64     `json:"chances"`
-		Description string      `json:"description"`
-		StartTime   time.Time   `json:"start_time"`
-		EndTime     time.Time   `json:"end_time"`
-		Status      string      `json:"status"`   // open | closed | resolved
-		Outcomes    [2]*Outcome `json:"outcomes"` // preload
+		ID          uint64       `json:"id"`
+		EventID     uint64       `json:"event_id"`
+		Title       string       `json:"title"`
+		Chances     float64      `json:"chances"`
+		Description string       `json:"description"`
+		StartTime   time.Time    `json:"start_time"`
+		EndTime     time.Time    `json:"end_time"`
+		Status      Status       `json:"status"`
+		Result      *OutcomeType `json:"result"`   // yes/no
+		Outcomes    [2]*Outcome  `json:"outcomes"` // preload
 	}
 
 	MarketChancesHistory struct {
@@ -24,7 +25,18 @@ type (
 		Chances   float64   `json:"chances"`
 		Timestamp time.Time `json:"timestamp"`
 	}
+
+	OutcomeType int
 )
+
+const (
+	OutcomeYes OutcomeType = iota
+	OutcomeNo
+)
+
+func (o OutcomeType) String() string {
+	return [...]string{"yes", "no"}[o]
+}
 
 func (m *Market) HandleBet(bet Bet) {
 	var outcome *Outcome

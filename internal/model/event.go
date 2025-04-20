@@ -4,14 +4,28 @@ import (
 	"time"
 )
 
-type Event struct {
-	ID          uint64    `json:"id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	StartTime   time.Time `json:"start_time"`
-	EndTime     time.Time `json:"end_time"`
-	Status      string    `json:"status"`  // open | closed | resolved
-	Markets     []*Market `json:"markets"` // preload
+type (
+	Event struct {
+		ID          uint64    `json:"id"`
+		Name        string    `json:"name"`
+		Description string    `json:"description"`
+		StartTime   time.Time `json:"start_time"`
+		EndTime     time.Time `json:"end_time"`
+		Status      Status    `json:"status"`
+		Markets     []*Market `json:"markets"` // preload
+	}
+
+	Status int
+)
+
+const (
+	StatusOpen Status = iota
+	StatusClosed
+	StatusResolved
+)
+
+func (s Status) String() string {
+	return [...]string{"open", "closed", "resolved"}[s]
 }
 
 func (e *Event) Liquidity() float64 {

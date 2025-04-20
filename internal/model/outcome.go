@@ -6,17 +6,17 @@ import (
 )
 
 type Outcome struct {
-	ID        uint64  `json:"id"`
-	MarketID  uint64  `json:"market_id"`
-	Name      string  `json:"name"`  // "Yes" / "No"
-	Price     float64 `json:"price"` // Current
-	Liquidity float64 `json:"liquidity"`
+	ID        uint64      `json:"id"`
+	MarketID  uint64      `json:"market_id"`
+	Type      OutcomeType `json:"type"`
+	Price     float64     `json:"price"` // Current
+	Liquidity float64     `json:"liquidity"`
 }
 
 func (o *Outcome) Print() {
 	println("Outcome ID:", o.ID)
 	println("Market ID:", o.MarketID)
-	println("Name:", o.Name)
+	println("Type:", o.Type)
 	fmt.Printf("Price: %.2f\n", o.Price)
 	fmt.Printf("Liquidity: %.2f\n", o.Liquidity)
 }
