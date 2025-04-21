@@ -52,18 +52,23 @@ func (h *Handler) chatConn(c *gin.Context) {
 		return
 	}
 
+	if err := client.OnClose(func() {
+		conn.Close()
+	}); err != nil {
+		c.JSON(500, gin.H{"error": "Failed to set close handler"})
+		conn.Close()
+		return
+	}
+
 	// Write a message to the client
 	go func() {
-		defer func() {
-			client.Close()
-			conn.Close()
-		}()
+		defer client.Close()
 
 		for {
 			select {
 			case <-client.Done():
 				return
-			case msg := <-client.SendMessageChannel():
+			case msg := <-client.SendChan():
 				if err := conn.WriteJSON(msg); err != nil {
 					return
 				}
@@ -73,10 +78,7 @@ func (h *Handler) chatConn(c *gin.Context) {
 
 	// Read messages from the client
 	go func() {
-		defer func() {
-			client.Close()
-			conn.Close()
-		}()
+		defer client.Close()
 
 		for {
 			var msg model.ChatMessage
@@ -84,7 +86,7 @@ func (h *Handler) chatConn(c *gin.Context) {
 				return
 			}
 
-			if err := client.HandleMessage(msg); err != nil {
+			if err := client.Handle(msg); err != nil {
 				return
 			}
 		}

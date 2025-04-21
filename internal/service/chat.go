@@ -30,7 +30,7 @@ func (c *ChatService) HandleChatConnection(ctx context.Context, client *model.Ch
 		c.hubs[eventID] = model.NewChatHub(eventID)
 	}
 
-	user, err := c.userService.Get(ctx, client.UserID)
+	user, err := c.userService.Get(ctx, client.UserID())
 	if err != nil {
 		client.Close()
 		return err
@@ -49,7 +49,7 @@ func (c *ChatService) HandleChatConnection(ctx context.Context, client *model.Ch
 			select {
 			case <-client.Done():
 				return
-			case msg := <-client.MessageChannel():
+			case msg := <-client.HandleChan():
 				go c.HandleMessage(ctx, hub, user, msg)
 			}
 		}
