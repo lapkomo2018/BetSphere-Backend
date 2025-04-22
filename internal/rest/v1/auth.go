@@ -38,11 +38,11 @@ func (h *Handler) login(c *gin.Context) {
 		return
 	}
 
+	c.SetCookie("Authorization", "Bearer "+pair.AccessToken.Token, int(pair.AccessToken.ExpiresAt.Sub(time.Now()).Seconds()), "/", "", false, false)
 	c.JSON(200, tokenResponse{
 		AccessToken:  pair.AccessToken.Token,
 		RefreshToken: pair.RefreshToken.Token,
 	})
-	c.SetCookie("Authorization", "Bearer:"+pair.AccessToken.Token, int(pair.AccessToken.ExpiresAt.Sub(time.Now()).Seconds()), "/", "", false, true)
 }
 
 func (h *Handler) register(c *gin.Context) {
@@ -62,6 +62,7 @@ func (h *Handler) register(c *gin.Context) {
 		return
 	}
 
+	c.SetCookie("Authorization", "Bearer "+pair.AccessToken.Token, int(pair.AccessToken.ExpiresAt.Sub(time.Now()).Seconds()), "/", "", false, false)
 	c.JSON(200, struct {
 		UserID uint64 `json:"user_id"`
 		tokenResponse
@@ -72,7 +73,6 @@ func (h *Handler) register(c *gin.Context) {
 			RefreshToken: pair.RefreshToken.Token,
 		},
 	})
-	c.SetCookie("Authorization", "Bearer:"+pair.AccessToken.Token, int(pair.AccessToken.ExpiresAt.Sub(time.Now()).Seconds()), "/", "", false, true)
 }
 
 func (h *Handler) refresh(c *gin.Context) {
@@ -90,11 +90,11 @@ func (h *Handler) refresh(c *gin.Context) {
 		return
 	}
 
+	c.SetCookie("Authorization", "Bearer "+pair.AccessToken.Token, int(pair.AccessToken.ExpiresAt.Sub(time.Now()).Seconds()), "/", "", false, false)
 	c.JSON(200, tokenResponse{
 		AccessToken:  pair.AccessToken.Token,
 		RefreshToken: pair.RefreshToken.Token,
 	})
-	c.SetCookie("Authorization", "Bearer:"+pair.AccessToken.Token, int(pair.AccessToken.ExpiresAt.Sub(time.Now()).Seconds()), "/", "", false, true)
 }
 
 func (h *Handler) logout(c *gin.Context) {
@@ -117,7 +117,20 @@ func (h *Handler) logout(c *gin.Context) {
 // authMiddleware is a middleware that checks if the user is authenticated
 // and sets the user ID in the context
 func (h *Handler) authMiddleware(c *gin.Context) {
-	token := c.Request.Header.Get("Authorization")
+	token, err := c.Cookie("Authorization")
+	if err != nil {
+		token = c.Request.Header.Get("Authorization")
+		if token == "" {
+			c.JSON(401, gin.H{"error": "Unauthorized"})
+			c.Abort()
+			return
+		}
+	}
+
+	if !strings.HasPrefix(token, "Bearer ") {
+		token = "Bearer " + token
+	}
+
 	if token == "" || !strings.HasPrefix(token, "Bearer ") {
 		c.JSON(401, gin.H{"error": "Unauthorized"})
 		c.Abort()
