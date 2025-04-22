@@ -29,5 +29,6 @@ func New(cfg Config) *Handler {
 
 func (h *Handler) Init(group *gin.RouterGroup) {
 	h.initAuth(group.Group("/auth"))
+	h.initUsers(group.Group("/users"))
 	h.initChat(group.Group(""))
 }
