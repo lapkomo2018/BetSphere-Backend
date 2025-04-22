@@ -104,14 +104,14 @@ func (c *ChatService) AddMessage(ctx context.Context, hub *model.ChatHub, msg mo
 		}).Error("failed to save message to database")
 		return err
 	}
-	msg.MessageID = message.ID
+	msg.ID = message.ID
 
 	hub.SendMessage(msg)
 	return nil
 }
 
 func (c *ChatService) EditMessage(ctx context.Context, hub *model.ChatHub, msg model.ChatMessage) error {
-	message, err := c.msgDB.Get(ctx, msg.MessageID)
+	message, err := c.msgDB.Get(ctx, msg.ID)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"userID":  msg.UserID,
@@ -125,7 +125,7 @@ func (c *ChatService) EditMessage(ctx context.Context, hub *model.ChatHub, msg m
 		logrus.WithFields(logrus.Fields{
 			"userID":    msg.UserID,
 			"eventID":   hub.EventID(),
-			"messageID": msg.MessageID,
+			"messageID": msg.ID,
 			"error":     errors.New("user not authorized to edit this message"),
 		}).Error("unauthorized message edit attempt")
 		return errors.New("unauthorized message edit attempt")
@@ -146,7 +146,7 @@ func (c *ChatService) EditMessage(ctx context.Context, hub *model.ChatHub, msg m
 }
 
 func (c *ChatService) DeleteMessage(ctx context.Context, hub *model.ChatHub, msg model.ChatMessage) error {
-	message, err := c.msgDB.Get(ctx, msg.MessageID)
+	message, err := c.msgDB.Get(ctx, msg.ID)
 	if err != nil {
 		logrus.WithFields(logrus.Fields{
 			"userID":  msg.UserID,
@@ -160,7 +160,7 @@ func (c *ChatService) DeleteMessage(ctx context.Context, hub *model.ChatHub, msg
 		logrus.WithFields(logrus.Fields{
 			"userID":    msg.UserID,
 			"eventID":   hub.EventID(),
-			"messageID": msg.MessageID,
+			"messageID": msg.ID,
 			"error":     errors.New("user not authorized to delete this message"),
 		}).Error("unauthorized message delete attempt")
 		return errors.New("unauthorized message delete attempt")
