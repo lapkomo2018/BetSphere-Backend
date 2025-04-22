@@ -3,7 +3,6 @@ package v1
 import (
 	"net/http"
 	"strconv"
-	"strings"
 
 	"stavki/internal/model"
 
@@ -24,7 +23,7 @@ var chatUpgrader = websocket.Upgrader{
 }
 
 func (h *Handler) initChat(group *gin.RouterGroup) {
-	group.GET("/:eventID/chat", h.userMiddleware, h.chatConn)
+	group.GET("/:eventID/chat", h.authMiddleware, h.chatConn)
 }
 
 func (h *Handler) chatConn(c *gin.Context) {
@@ -91,23 +90,4 @@ func (h *Handler) chatConn(c *gin.Context) {
 			}
 		}
 	}()
-}
-
-func (h *Handler) userMiddleware(c *gin.Context) {
-	token := c.Request.Header.Get("Authorization")
-	if token == "" || !strings.HasPrefix(token, "Bearer ") {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
-		c.Abort()
-		return
-	}
-
-	userID, err := h.authService.AuthenticateJWT(c, strings.TrimPrefix(token, "Bearer "))
-	if err != nil {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
-		c.Abort()
-		return
-	}
-
-	c.Set(userIDKey, userID)
-	c.Next()
 }

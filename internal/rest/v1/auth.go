@@ -2,6 +2,7 @@ package v1
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -111,4 +112,25 @@ func (h *Handler) logout(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+// authMiddleware is a middleware that checks if the user is authenticated
+// and sets the user ID in the context
+func (h *Handler) authMiddleware(c *gin.Context) {
+	token := c.Request.Header.Get("Authorization")
+	if token == "" || !strings.HasPrefix(token, "Bearer ") {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		c.Abort()
+		return
+	}
+
+	userID, err := h.authService.AuthenticateJWT(c, strings.TrimPrefix(token, "Bearer "))
+	if err != nil {
+		c.JSON(401, gin.H{"error": "Unauthorized"})
+		c.Abort()
+		return
+	}
+
+	c.Set(userIDKey, userID)
+	c.Next()
 }
