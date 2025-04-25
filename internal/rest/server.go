@@ -5,9 +5,11 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"stavki/internal/rest/v1"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
@@ -32,6 +34,15 @@ func New(cfg *Config) *Server {
 
 	r.Use(gin.Recovery())
 	r.Use(gin.LoggerWithWriter(logrus.StandardLogger().Writer()))
+
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 
 	return &Server{
 		gin: r,

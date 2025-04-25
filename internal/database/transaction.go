@@ -16,6 +16,7 @@ type (
 	Adapters struct {
 		UserRepository *UserRepository
 		JWTRepository  *JWTRepository
+		MsgRepository  *MessageRepository
 	}
 )
 
@@ -30,6 +31,7 @@ func (p *transactionProvider) Transact(txFunc func(adapters Adapters) error) err
 		adapters := Adapters{
 			UserRepository: NewUserRepository(tx),
 			JWTRepository:  NewJWTRepository(tx),
+			MsgRepository:  NewMessageRepository(tx),
 		}
 
 		return txFunc(adapters)
