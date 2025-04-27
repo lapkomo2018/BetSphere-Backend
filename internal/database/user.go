@@ -37,7 +37,7 @@ func (u *UserRepository) Save(ctx context.Context, user *model.User) (*model.Use
 	return user, u.db.WithContext(ctx).Save(user).Error
 }
 
-func (u *UserRepository) UpdateBalance(ctx context.Context, id uint64, amount float64) (*model.User, error) {
+func (u *UserRepository) AdjustBalance(ctx context.Context, id uint64, amount float64) (*model.User, error) {
 	var user model.User
 	result := u.db.WithContext(ctx).
 		Model(&user).
