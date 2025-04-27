@@ -110,7 +110,7 @@ func (e *EventService) HandleBet(ctx context.Context, bet *model.Bet) error {
 			return err
 		}
 
-		if _, err := a.OutcomeRepository.UpdateLiquidity(ctx, bet.OutcomeID, bet.Amount); err != nil {
+		if _, err := a.OutcomeRepository.AdjustLiquidity(ctx, bet.OutcomeID, bet.Amount); err != nil {
 			return err
 		}
 

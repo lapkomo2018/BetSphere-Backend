@@ -32,7 +32,7 @@ func (o *OutcomeRepository) Save(ctx context.Context, outcome *model.Outcome) er
 	return o.db.WithContext(ctx).Save(outcome).Error
 }
 
-func (o *OutcomeRepository) UpdateLiquidity(ctx context.Context, id uint64, amount float64) (*model.Outcome, error) {
+func (o *OutcomeRepository) AdjustLiquidity(ctx context.Context, id uint64, amount float64) (*model.Outcome, error) {
 	var outcome model.Outcome
 	result := o.db.WithContext(ctx).
 		Model(&outcome).
