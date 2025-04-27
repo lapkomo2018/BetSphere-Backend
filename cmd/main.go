@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"stavki/external/hash"
+	"stavki/internal/cache"
 	"stavki/internal/database"
 	"stavki/internal/rest"
 	v1 "stavki/internal/rest/v1"
@@ -62,33 +63,33 @@ func main() {
 	txProvider := database.NewTransactionProvider(db)
 	userDB := database.NewUserRepository(db)
 	jwtDB := database.NewJWTRepository(db)
+	eventDB := database.NewEventRepository(db)
+	messageDB := database.NewMessageRepository(db)
+	betDB := database.NewBetRepository(db)
 
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     cfg.Redis.Host + ":" + cfg.Redis.Port,
 		Password: cfg.Redis.Password,
 		DB:       0,
 	})
-
 	if err := rdb.Ping(context.Background()).Err(); err != nil {
 		logrus.Fatal("Error initializing redis: ", err)
 	}
 
-	authService, err := service.NewAuth(txProvider, jwtDB, []byte(cfg.JWTSecret))
-	if err != nil {
-		logrus.Fatal("Error initializing auth service: ", err)
-	}
+	r := cache.NewCache(rdb)
 
-	userService, err := service.NewUser(txProvider, userDB, rdb, hash.NewHasher(cfg.HashSalt), authService)
-	if err != nil {
-		logrus.Fatal("Error initializing user service: ", err)
-	}
-
-	chatService := service.NewChatService(database.NewMessageRepository(db), userService)
+	authService := service.NewAuth(txProvider, jwtDB, []byte(cfg.JWTSecret))
+	userService := service.NewUser(txProvider, userDB, r, hash.NewHasher(cfg.HashSalt), authService)
+	eventService := service.NewEvent(txProvider, eventDB, r, *userService)
+	chatService := service.NewChatService(messageDB, userService)
+	betService := service.NewBetService(betDB)
 
 	srv := rest.New(&cfg.Rest).Init(v1.Config{
-		UserService: userService,
-		AuthService: authService,
-		ChatService: chatService,
+		UserService:  userService,
+		AuthService:  authService,
+		ChatService:  chatService,
+		EventService: eventService,
+		BetService:   betService,
 	})
 
 	go func() {
