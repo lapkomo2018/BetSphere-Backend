@@ -73,7 +73,7 @@ func (h *Handler) eventIDMiddleware(c *gin.Context) {
 	}
 
 	if _, err := h.eventService.Get(c.Request.Context(), id); err != nil {
-		c.AbortWithStatusJSON(404, gin.H{"error": err.Error()})
+		c.AbortWithStatusJSON(404, gin.H{"error": "event not found"})
 		return
 	}
 
