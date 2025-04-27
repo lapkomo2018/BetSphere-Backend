@@ -79,14 +79,14 @@ func (e *Event) updateChancesMulti() {
 	if totalLiquidity == 0 {
 		chance := 1.0 / float64(len(e.Markets))
 		for _, m := range e.Markets {
-			m.Chances = chance
+			m.Chance = chance
 			m.UpdatePrices()
 		}
 		return
 	}
 
 	for _, m := range e.Markets {
-		m.Chances = m.Liquidity() / totalLiquidity
+		m.Chance = m.Liquidity() / totalLiquidity
 		m.UpdatePrices()
 	}
 }

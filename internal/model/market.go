@@ -11,7 +11,7 @@ type (
 		ID          uint64       `gorm:"primary_key" json:"id"`
 		EventID     uint64       `json:"event_id"`
 		Title       string       `json:"title"`
-		Chances     float64      `json:"chances"`
+		Chance      float64      `json:"chance"`
 		Description string       `json:"description"`
 		StartTime   time.Time    `json:"start_time"`
 		EndTime     time.Time    `json:"end_time"`
@@ -57,16 +57,16 @@ func (m *Market) Create() error {
 func (m *Market) UpdateChances() {
 	total := m.Liquidity()
 	if total == 0 {
-		m.Chances = 0.5
+		m.Chance = 0.5
 	} else {
-		m.Chances = m.Outcomes[0].Liquidity / total
+		m.Chance = m.Outcomes[0].Liquidity / total
 	}
 	m.UpdatePrices()
 }
 
 func (m *Market) UpdatePrices() {
-	m.Outcomes[0].Price = m.Chances
-	m.Outcomes[1].Price = 1 - m.Chances
+	m.Outcomes[0].Price = m.Chance
+	m.Outcomes[1].Price = 1 - m.Chance
 }
 
 func (m *Market) Liquidity() float64 {
@@ -78,7 +78,7 @@ func (m *Market) Print() {
 	println("Event ID:", m.EventID)
 	println("Title:", m.Title)
 	println("Description:", m.Description)
-	fmt.Printf("Chances: %.2f\n", m.Chances)
+	fmt.Printf("Chance: %.2f\n", m.Chance)
 	println("Start Time:", m.StartTime.String())
 	println("End Time:", m.EndTime.String())
 	println("Status:", m.Status)
