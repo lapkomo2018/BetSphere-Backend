@@ -8,7 +8,9 @@ func Migrate() []interface{} {
 		&Message{},
 		&Event{},
 		&Market{},
+		&MarketChancesHistory{},
 		&Outcome{},
+		&OutcomeHistory{},
 		&Bet{},
 	}
 }

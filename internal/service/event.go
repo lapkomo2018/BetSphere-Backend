@@ -35,6 +35,17 @@ func (e *EventService) Create(ctx context.Context, event *model.Event) (*model.E
 			return err
 		}
 
+		for _, market := range event.Markets {
+			if _, err := a.MarketRepository.CreateHistory(ctx, market); err != nil {
+				return err
+			}
+			for _, outcome := range market.Outcomes {
+				if _, err := a.OutcomeRepository.CreateHistory(ctx, outcome); err != nil {
+					return err
+				}
+			}
+		}
+
 		return nil
 	})
 }
@@ -121,11 +132,11 @@ func (e *EventService) HandleBet(ctx context.Context, bet *model.Bet) error {
 
 		event.UpdateChances()
 		for _, market := range event.Markets {
-			if err := a.MarketRepository.Save(ctx, market); err != nil {
+			if _, err := a.MarketRepository.UpdateChance(ctx, market); err != nil {
 				return err
 			}
 			for _, outcome := range market.Outcomes {
-				if err := a.OutcomeRepository.Save(ctx, outcome); err != nil {
+				if _, err := a.OutcomeRepository.UpdatePrice(ctx, outcome); err != nil {
 					return err
 				}
 			}

@@ -2,6 +2,7 @@ package database
 
 import (
 	"context"
+	"time"
 
 	"stavki/internal/model"
 
@@ -29,6 +30,29 @@ func (m *MarketRepository) Get(ctx context.Context, id uint64) (*model.Market, e
 
 func (m *MarketRepository) Save(ctx context.Context, market *model.Market) error {
 	return m.db.WithContext(ctx).Save(market).Error
+}
+
+// UpdateChance updates the chance of a market and creates a history record.
+func (m *MarketRepository) UpdateChance(ctx context.Context, market *model.Market) (*model.Market, error) {
+	db := m.db.WithContext(ctx)
+	if err := db.Model(&market).Update("chance", market.Chance).Error; err != nil {
+		return market, err
+	}
+
+	if _, err := m.CreateHistory(ctx, market); err != nil {
+		return market, err
+	}
+
+	return market, nil
+}
+
+func (m *MarketRepository) CreateHistory(ctx context.Context, market *model.Market) (*model.MarketChancesHistory, error) {
+	history := &model.MarketChancesHistory{
+		MarketID:  market.ID,
+		Chances:   market.Chance,
+		CreatedAt: time.Now(),
+	}
+	return history, m.db.WithContext(ctx).Create(history).Error
 }
 
 func (m *MarketRepository) preload(db *gorm.DB) *gorm.DB {
