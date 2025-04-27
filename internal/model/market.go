@@ -26,7 +26,7 @@ type (
 		ID        uint64    `json:"id"`
 		MarketID  uint64    `json:"market_id"`
 		Chances   float64   `json:"chances"`
-		Timestamp time.Time `json:"timestamp"`
+		CreatedAt time.Time `json:"created_at"`
 	}
 
 	OutcomeType int
