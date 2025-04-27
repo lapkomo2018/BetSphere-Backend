@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"fmt"
+	"math"
 	"time"
 
 	"stavki/internal/model"
@@ -94,8 +96,10 @@ func (h *Handler) getEvents(c *gin.Context) {
 
 func (h *Handler) placeBet(c *gin.Context) {
 	var body struct {
-		OutcomeID uint64  `json:"outcome_id" binding:"required"`
-		Amount    float64 `json:"amount" binding:"required"`
+		OutcomeID        uint64  `json:"outcome_id" binding:"required"`
+		Amount           float64 `json:"amount" binding:"required"`
+		TokenPrice       float64 `json:"token_price" binding:"required"`
+		AllowedDeviation float64 `json:"allowed_deviation" binding:"required"`
 	}
 	if err := c.BindJSON(&body); err != nil {
 		c.JSON(400, gin.H{"error": "invalid body"})
@@ -104,6 +108,11 @@ func (h *Handler) placeBet(c *gin.Context) {
 
 	if body.Amount <= 0 {
 		c.JSON(400, gin.H{"error": "invalid amount"})
+		return
+	}
+
+	if body.AllowedDeviation <= 0 {
+		c.JSON(400, gin.H{"error": "invalid allowed deviation"})
 		return
 	}
 
@@ -131,6 +140,12 @@ func (h *Handler) placeBet(c *gin.Context) {
 	}
 	if outcome == nil {
 		c.JSON(400, gin.H{"error": "outcome not found"})
+		return
+	}
+
+	deviation := math.Abs(outcome.Price-body.TokenPrice) / outcome.Price * 100
+	if deviation > body.AllowedDeviation {
+		c.JSON(400, gin.H{"error": fmt.Sprintf("allowed deviation exceeded currently at %.2f%%", deviation)})
 		return
 	}
 
