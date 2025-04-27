@@ -2,7 +2,6 @@ package v1
 
 import (
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -39,6 +38,7 @@ func (h *Handler) login(c *gin.Context) {
 	}
 
 	c.SetCookie("Authorization", "Bearer "+pair.AccessToken.Token, int(pair.AccessToken.ExpiresAt.Sub(time.Now()).Seconds()), "/", "", false, false)
+	c.SetCookie("RefreshToken", pair.RefreshToken.Token, int(pair.RefreshToken.ExpiresAt.Sub(time.Now()).Seconds()), "/", "", false, false)
 	c.JSON(200, tokenResponse{
 		AccessToken:  pair.AccessToken.Token,
 		RefreshToken: pair.RefreshToken.Token,
@@ -63,6 +63,7 @@ func (h *Handler) register(c *gin.Context) {
 	}
 
 	c.SetCookie("Authorization", "Bearer "+pair.AccessToken.Token, int(pair.AccessToken.ExpiresAt.Sub(time.Now()).Seconds()), "/", "", false, false)
+	c.SetCookie("RefreshToken", pair.RefreshToken.Token, int(pair.RefreshToken.ExpiresAt.Sub(time.Now()).Seconds()), "/", "", false, false)
 	c.JSON(200, struct {
 		UserID uint64 `json:"user_id"`
 		tokenResponse
@@ -76,21 +77,20 @@ func (h *Handler) register(c *gin.Context) {
 }
 
 func (h *Handler) refresh(c *gin.Context) {
-	var body struct {
-		RefreshToken string `json:"refresh_token" binding:"required"`
-	}
-	if err := c.BindJSON(&body); err != nil {
-		c.JSON(400, gin.H{"error": "invalid body"})
+	refreshToken := getRefreshToken(c)
+	if refreshToken == "" {
+		c.JSON(400, gin.H{"error": "refresh token not found"})
 		return
 	}
 
-	pair, err := h.authService.RefreshJWT(c.Request.Context(), body.RefreshToken)
+	pair, err := h.authService.RefreshJWT(c.Request.Context(), refreshToken)
 	if err != nil {
 		c.JSON(401, gin.H{"error": "invalid refresh token"})
 		return
 	}
 
 	c.SetCookie("Authorization", "Bearer "+pair.AccessToken.Token, int(pair.AccessToken.ExpiresAt.Sub(time.Now()).Seconds()), "/", "", false, false)
+	c.SetCookie("RefreshToken", pair.RefreshToken.Token, int(pair.RefreshToken.ExpiresAt.Sub(time.Now()).Seconds()), "/", "", false, false)
 	c.JSON(200, tokenResponse{
 		AccessToken:  pair.AccessToken.Token,
 		RefreshToken: pair.RefreshToken.Token,
@@ -98,52 +98,31 @@ func (h *Handler) refresh(c *gin.Context) {
 }
 
 func (h *Handler) logout(c *gin.Context) {
-	var body struct {
-		RefreshToken string `json:"refresh_token" binding:"required"`
-	}
-	if err := c.BindJSON(&body); err != nil {
-		c.JSON(400, gin.H{"error": "invalid body"})
+	refreshToken := getRefreshToken(c)
+	if refreshToken == "" {
+		c.JSON(400, gin.H{"error": "refresh token not found"})
 		return
 	}
-
-	if err := h.authService.LogoutJWT(c.Request.Context(), body.RefreshToken); err != nil {
+	if err := h.authService.LogoutJWT(c.Request.Context(), refreshToken); err != nil {
 		c.JSON(500, gin.H{"error": "failed to logout"})
 		return
 	}
 
 	c.Status(http.StatusNoContent)
 }
-
-// authMiddleware is a middleware that checks if the user is authenticated
-// and sets the user ID in the context
-func (h *Handler) authMiddleware(c *gin.Context) {
-	token, err := c.Cookie("Authorization")
-	if err != nil {
-		token = c.Request.Header.Get("Authorization")
-		if token == "" {
-			c.JSON(401, gin.H{"error": "Unauthorized"})
-			c.Abort()
-			return
-		}
+func getRefreshToken(c *gin.Context) string {
+	if cookie, err := c.Cookie("RefreshToken"); err == nil {
+		return cookie
+	} else if header := c.GetHeader("RefreshToken"); header != "" {
+		return header
 	}
 
-	if !strings.HasPrefix(token, "Bearer ") {
-		token = "Bearer " + token
+	var body struct {
+		RefreshToken string `json:"refresh_token" binding:"required"`
+	}
+	if err := c.BindJSON(&body); err != nil {
+		return ""
 	}
 
-	if token == "" || !strings.HasPrefix(token, "Bearer ") {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
-		c.Abort()
-		return
-	}
-
-	userID, err := h.authService.AuthenticateJWT(c, strings.TrimPrefix(token, "Bearer "))
-	if err != nil {
-		c.JSON(401, gin.H{"error": "Unauthorized"})
-		c.Abort()
-		return
-	}
-
-	c.Set(userIDKey, userID)
-	c.Next()
+	return body.RefreshToken
 }

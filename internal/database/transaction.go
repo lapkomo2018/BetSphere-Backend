@@ -14,9 +14,13 @@ type (
 		db *gorm.DB
 	}
 	Adapters struct {
-		UserRepository *UserRepository
-		JWTRepository  *JWTRepository
-		MsgRepository  *MessageRepository
+		UserRepository    *UserRepository
+		JWTRepository     *JWTRepository
+		MsgRepository     *MessageRepository
+		EventRepository   *EventRepository
+		MarketRepository  *MarketRepository
+		OutcomeRepository *OutcomeRepository
+		BetRepository     *BetRepository
 	}
 )
 
@@ -29,9 +33,13 @@ func NewTransactionProvider(db *gorm.DB) TransactionProvider {
 func (p *transactionProvider) Transact(txFunc func(adapters Adapters) error) error {
 	return runInTx(p.db, func(tx *gorm.DB) error {
 		adapters := Adapters{
-			UserRepository: NewUserRepository(tx),
-			JWTRepository:  NewJWTRepository(tx),
-			MsgRepository:  NewMessageRepository(tx),
+			UserRepository:    NewUserRepository(tx),
+			JWTRepository:     NewJWTRepository(tx),
+			MsgRepository:     NewMessageRepository(tx),
+			EventRepository:   NewEventRepository(tx),
+			MarketRepository:  NewMarketRepository(tx),
+			OutcomeRepository: NewOutcomeRepository(tx),
+			BetRepository:     NewBetRepository(tx),
 		}
 
 		return txFunc(adapters)

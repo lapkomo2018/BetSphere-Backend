@@ -2,12 +2,10 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
-	"time"
 
 	"stavki/external/hash"
+	"stavki/internal/cache"
 	"stavki/internal/database"
 	"stavki/internal/model"
 
@@ -18,21 +16,21 @@ import (
 type UserService struct {
 	txProvider database.TransactionProvider
 	userDB     *database.UserRepository
-	rdb        *redis.Client
+	r          *cache.Cache
 	hasher     hash.Hasher
 	auth       *Auth
 }
 
 // NewUser creates a new UserService service instance.
 // UserDB must not have an active transaction.
-func NewUser(txProvider database.TransactionProvider, userDB *database.UserRepository, rdb *redis.Client, h hash.Hasher, a *Auth) (*UserService, error) {
+func NewUser(txProvider database.TransactionProvider, userDB *database.UserRepository, r *cache.Cache, h hash.Hasher, a *Auth) *UserService {
 	return &UserService{
 		txProvider: txProvider,
 		userDB:     userDB,
-		rdb:        rdb,
+		r:          r,
 		hasher:     h,
 		auth:       a,
-	}, nil
+	}
 }
 
 // Register registers a new user in the database.
@@ -48,7 +46,12 @@ func (u *UserService) Register(ctx context.Context, username, email, password st
 		return nil, model.TokenPair{}, err
 	}
 
-	u.cacheUser(ctx, user)
+	if err := u.r.SetUser(ctx, user); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error": err,
+			"id":    user.ID,
+		}).Error("Error caching user")
+	}
 
 	pair, err := u.auth.CreateJWT(ctx, user.ID)
 	if err != nil {
@@ -86,7 +89,7 @@ func (u *UserService) Login(ctx context.Context, login, password string) (*model
 }
 
 func (u *UserService) Get(ctx context.Context, id uint64) (*model.User, error) {
-	user, err := u.getUserFromCache(ctx, id)
+	user, err := u.r.User(ctx, id)
 	if err == nil {
 		return user, nil
 	} else if !errors.Is(err, redis.Nil) {
@@ -101,40 +104,11 @@ func (u *UserService) Get(ctx context.Context, id uint64) (*model.User, error) {
 		return nil, err
 	}
 
-	u.cacheUser(ctx, user)
+	if err := u.r.SetUser(ctx, user); err != nil {
+		logrus.WithFields(logrus.Fields{
+			"error": err,
+			"id":    user.ID,
+		}).Error("Error caching user")
+	}
 	return user, nil
-}
-
-func (u *UserService) cacheUser(ctx context.Context, user *model.User) {
-	userJSON, err := json.Marshal(user)
-	if err != nil {
-		logrus.WithFields(logrus.Fields{
-			"error": err,
-			"id":    user.ID,
-		}).Error("Error marshalling user")
-		return
-	}
-
-	key := fmt.Sprintf("user:%d", user.ID)
-	if err := u.rdb.Set(ctx, key, userJSON, time.Minute).Err(); err != nil {
-		logrus.WithFields(logrus.Fields{
-			"error": err,
-			"id":    user.ID,
-		}).Error("Error setting user in cache")
-	}
-}
-
-func (u *UserService) getUserFromCache(ctx context.Context, id uint64) (*model.User, error) {
-	key := fmt.Sprintf("user:%d", id)
-	userCache, err := u.rdb.Get(ctx, key).Result()
-	if err != nil {
-		return nil, err
-	}
-
-	var user model.User
-	if err := json.Unmarshal([]byte(userCache), &user); err != nil {
-		return nil, err
-	}
-
-	return &user, nil
 }

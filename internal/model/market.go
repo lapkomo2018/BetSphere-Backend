@@ -1,13 +1,14 @@
 package model
 
 import (
+	"errors"
 	"fmt"
 	"time"
 )
 
 type (
 	Market struct {
-		ID          uint64       `json:"id"`
+		ID          uint64       `gorm:"primary_key" json:"id"`
 		EventID     uint64       `json:"event_id"`
 		Title       string       `json:"title"`
 		Chances     float64      `json:"chances"`
@@ -16,7 +17,9 @@ type (
 		EndTime     time.Time    `json:"end_time"`
 		Status      Status       `json:"status"`
 		Result      *OutcomeType `json:"result"`   // yes/no
-		Outcomes    [2]*Outcome  `json:"outcomes"` // preload
+		Outcomes    []*Outcome   `json:"outcomes"` // preload
+		UpdatedAt   time.Time    `json:"updated_at"`
+		CreatedAt   time.Time    `json:"created_at"`
 	}
 
 	MarketChancesHistory struct {
@@ -38,18 +41,17 @@ func (o OutcomeType) String() string {
 	return [...]string{"yes", "no"}[o]
 }
 
-func (m *Market) HandleBet(bet Bet) {
-	var outcome *Outcome
-	for _, o := range m.Outcomes {
-		if o.ID == bet.OutcomeID {
-			outcome = o
-			break
-		}
+func (m *Market) Create() error {
+	m.Outcomes = []*Outcome{
+		NewOutcome(OutcomeYes, 0.5, 0),
+		NewOutcome(OutcomeNo, 0.5, 0),
 	}
 
-	if outcome != nil {
-		outcome.Liquidity += bet.Amount
+	if m.Result != nil {
+		return errors.New("result already set")
 	}
+
+	return nil
 }
 
 func (m *Market) UpdateChances() {

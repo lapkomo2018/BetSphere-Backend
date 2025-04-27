@@ -6,11 +6,21 @@ import (
 )
 
 type Outcome struct {
-	ID        uint64      `json:"id"`
+	ID        uint64      `gorm:"primary_key" json:"id"`
 	MarketID  uint64      `json:"market_id"`
 	Type      OutcomeType `json:"type"`
 	Price     float64     `json:"price"` // Current
 	Liquidity float64     `json:"liquidity"`
+	UpdatedAt time.Time   `json:"updated_at"`
+	CreatedAt time.Time   `json:"created_at"`
+}
+
+func NewOutcome(t OutcomeType, price, liquidity float64) *Outcome {
+	return &Outcome{
+		Type:      t,
+		Price:     price,
+		Liquidity: liquidity,
+	}
 }
 
 func (o *Outcome) Print() {

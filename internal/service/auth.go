@@ -31,12 +31,12 @@ var (
 
 // NewAuth creates a new Auth service instance.
 // JWT_DB must not have an active transaction.
-func NewAuth(txProvider database.TransactionProvider, jwtDB *database.JWTRepository, jwtKey []byte) (*Auth, error) {
+func NewAuth(txProvider database.TransactionProvider, jwtDB *database.JWTRepository, jwtKey []byte) *Auth {
 	return &Auth{
 		txProvider: txProvider,
 		jwtDB:      jwtDB,
 		jwtKey:     jwtKey,
-	}, nil
+	}
 }
 
 // CreateJWT creates a new JWT for the given user ID.

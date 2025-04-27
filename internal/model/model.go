@@ -6,5 +6,9 @@ func Migrate() []interface{} {
 		&User{},
 		&JWT{},
 		&Message{},
+		&Event{},
+		&Market{},
+		&Outcome{},
+		&Bet{},
 	}
 }
