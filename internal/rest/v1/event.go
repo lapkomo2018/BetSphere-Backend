@@ -2,13 +2,14 @@ package v1
 
 import (
 	"fmt"
-	"math"
 	"time"
 
 	"stavki/internal/model"
 
 	"github.com/gin-gonic/gin"
 )
+
+const betFee = 2
 
 func (h *Handler) initEvents(group *gin.RouterGroup) {
 	group.POST("", h.authMiddleware, h.requireAdmin, h.createEvent)
@@ -97,9 +98,9 @@ func (h *Handler) getEvents(c *gin.Context) {
 func (h *Handler) placeBet(c *gin.Context) {
 	var body struct {
 		OutcomeID        uint64  `json:"outcome_id" binding:"required"`
-		Amount           float64 `json:"amount" binding:"required"`
-		TokenPrice       float64 `json:"token_price" binding:"required"`
-		AllowedDeviation float64 `json:"allowed_deviation" binding:"required"`
+		Amount           float64 `json:"amount"`
+		TokenPrice       float64 `json:"token_price"`
+		AllowedDeviation float64 `json:"allowed_deviation"`
 	}
 	if err := c.BindJSON(&body); err != nil {
 		c.JSON(400, gin.H{"error": "invalid body"})
@@ -108,6 +109,11 @@ func (h *Handler) placeBet(c *gin.Context) {
 
 	if body.Amount <= 0 {
 		c.JSON(400, gin.H{"error": "invalid amount"})
+		return
+	}
+
+	if body.TokenPrice <= 0 {
+		c.JSON(400, gin.H{"error": "invalid token price"})
 		return
 	}
 
@@ -127,15 +133,21 @@ func (h *Handler) placeBet(c *gin.Context) {
 		return
 	}
 
+	if event.Status != model.StatusOpen {
+		c.JSON(400, gin.H{"error": "event is not open"})
+		return
+	}
+
 	var outcome *model.Outcome
-	var marketID uint64
 	for _, market := range event.Markets {
 		for _, o := range market.Outcomes {
 			if o.ID == body.OutcomeID {
 				outcome = o
-				marketID = market.ID
 				break
 			}
+		}
+		if outcome != nil {
+			break
 		}
 	}
 	if outcome == nil {
@@ -143,22 +155,15 @@ func (h *Handler) placeBet(c *gin.Context) {
 		return
 	}
 
-	deviation := math.Abs(outcome.Price-body.TokenPrice) / outcome.Price * 100
-	if deviation > body.AllowedDeviation {
-		c.JSON(400, gin.H{"error": fmt.Sprintf("allowed deviation exceeded currently at %.2f%%", deviation)})
+	bet := model.NewBet(c.GetUint64(userIDKey), event.ID, outcome.MarketID, outcome.ID, body.Amount).
+		CalculateFee(betFee).
+		CalculateTokens(outcome.Price)
+
+	if d := bet.CalculateDeviation(body.TokenPrice); d > body.AllowedDeviation {
+		c.JSON(400, gin.H{"error": fmt.Sprintf("allowed deviation exceeded currently at %.2f%%", d)})
 		return
 	}
 
-	bet := &model.Bet{
-		UserID:     c.GetUint64(userIDKey),
-		EventID:    event.ID,
-		MarketID:   marketID,
-		OutcomeID:  outcome.ID,
-		Amount:     body.Amount,
-		TokenPrice: outcome.Price,
-		Tokens:     body.Amount / outcome.Price,
-		Timestamp:  time.Now(),
-	}
 	if err := h.eventService.HandleBet(c.Request.Context(), bet); err != nil {
 		c.JSON(500, gin.H{"error": "failed to place bet: " + err.Error()})
 		return

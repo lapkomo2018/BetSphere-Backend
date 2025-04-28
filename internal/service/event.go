@@ -113,7 +113,7 @@ func (e *EventService) List(ctx context.Context, offset, limit int) ([]*model.Ev
 
 func (e *EventService) HandleBet(ctx context.Context, bet *model.Bet) error {
 	return e.txProvider.Transact(func(a database.Adapters) error {
-		if _, err := a.UserRepository.AdjustBalance(ctx, bet.UserID, -bet.Amount); err != nil {
+		if _, err := a.UserRepository.AdjustBalance(ctx, bet.UserID, -bet.TotalAmount()); err != nil {
 			return err
 		}
 
