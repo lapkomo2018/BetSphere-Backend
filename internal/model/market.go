@@ -43,8 +43,8 @@ func (o OutcomeType) String() string {
 
 func (m *Market) Create() error {
 	m.Outcomes = []*Outcome{
-		NewOutcome(OutcomeYes, 0.5, 0),
-		NewOutcome(OutcomeNo, 0.5, 0),
+		NewOutcome(OutcomeYes, 0.5, 1),
+		NewOutcome(OutcomeNo, 0.5, 1),
 	}
 
 	if m.Result != nil {
