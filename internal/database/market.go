@@ -55,6 +55,16 @@ func (m *MarketRepository) CreateHistory(ctx context.Context, market *model.Mark
 	return history, m.db.WithContext(ctx).Create(history).Error
 }
 
+func (m *MarketRepository) History(ctx context.Context, id uint64, offset, limit int) ([]*model.MarketChancesHistory, error) {
+	var markets []*model.MarketChancesHistory
+	return markets, m.db.WithContext(ctx).
+		Where("market_id = ?", id).
+		Order("created_at desc").
+		Offset(offset).
+		Limit(limit).
+		Find(&markets).Error
+}
+
 func (m *MarketRepository) preload(db *gorm.DB) *gorm.DB {
 	return db.Preload("Outcomes")
 }

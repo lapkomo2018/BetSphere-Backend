@@ -66,6 +66,8 @@ func main() {
 	eventDB := database.NewEventRepository(db)
 	messageDB := database.NewMessageRepository(db)
 	betDB := database.NewBetRepository(db)
+	marketDB := database.NewMarketRepository(db)
+	outcomeDB := database.NewOutcomeRepository(db)
 
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     cfg.Redis.Host + ":" + cfg.Redis.Port,
@@ -83,13 +85,17 @@ func main() {
 	eventService := service.NewEvent(txProvider, eventDB, r, *userService)
 	chatService := service.NewChatService(messageDB, userService)
 	betService := service.NewBetService(betDB)
+	marketService := service.NewMarket(txProvider, marketDB, r)
+	outcomeService := service.NewOutcome(txProvider, outcomeDB, r)
 
 	srv := rest.New(&cfg.Rest).Init(v1.Config{
-		UserService:  userService,
-		AuthService:  authService,
-		ChatService:  chatService,
-		EventService: eventService,
-		BetService:   betService,
+		UserService:    userService,
+		AuthService:    authService,
+		ChatService:    chatService,
+		EventService:   eventService,
+		BetService:     betService,
+		MarketService:  marketService,
+		OutcomeService: outcomeService,
 	})
 
 	go func() {

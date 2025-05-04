@@ -75,3 +75,14 @@ func (o *OutcomeRepository) CreateHistory(ctx context.Context, outcome *model.Ou
 	}
 	return history, o.db.WithContext(ctx).Create(history).Error
 }
+
+func (o *OutcomeRepository) History(ctx context.Context, id uint64, offset, limit int) ([]*model.OutcomeHistory, error) {
+	var histories []*model.OutcomeHistory
+	return histories, o.db.WithContext(ctx).
+		Model(&model.OutcomeHistory{}).
+		Where("outcome_id = ?", id).
+		Order("created_at DESC").
+		Offset(offset).
+		Limit(limit).
+		Find(&histories).Error
+}

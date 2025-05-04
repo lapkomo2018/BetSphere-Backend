@@ -9,8 +9,10 @@ import (
 )
 
 const (
-	userIDKey  = "userID"
-	eventIDKey = "eventID"
+	userIDKey    = "userID"
+	eventIDKey   = "eventID"
+	marketIDKey  = "marketID"
+	outcomeIDKey = "outcomeID"
 )
 
 // authMiddleware is a middleware that checks if the user is authenticated
@@ -78,6 +80,36 @@ func (h *Handler) eventIDMiddleware(c *gin.Context) {
 	}
 
 	c.Set(eventIDKey, id)
+}
+
+func (h *Handler) marketIDMiddleware(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.AbortWithStatusJSON(400, gin.H{"error": "invalid Market ID"})
+		return
+	}
+
+	if _, err := h.marketService.Get(c.Request.Context(), id); err != nil {
+		c.AbortWithStatusJSON(404, gin.H{"error": "market not found"})
+		return
+	}
+
+	c.Set(marketIDKey, id)
+}
+
+func (h *Handler) outcomeIDMiddleware(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.AbortWithStatusJSON(400, gin.H{"error": "invalid Outcome ID"})
+		return
+	}
+
+	if _, err := h.outcomeService.Get(c.Request.Context(), id); err != nil {
+		c.AbortWithStatusJSON(404, gin.H{"error": "outcome not found"})
+		return
+	}
+
+	c.Set(outcomeIDKey, id)
 }
 
 func parseOffsetLimit(c *gin.Context) (offset, limit int) {
