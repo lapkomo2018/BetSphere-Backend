@@ -88,7 +88,7 @@ func main() {
 	marketService := service.NewMarket(txProvider, marketDB, r)
 	outcomeService := service.NewOutcome(txProvider, outcomeDB, r)
 
-	srv := rest.New(&cfg.Rest).Init(v1.Config{
+	srv, err := rest.New(&cfg.Rest).Init(v1.Config{
 		UserService:    userService,
 		AuthService:    authService,
 		ChatService:    chatService,
@@ -97,6 +97,9 @@ func main() {
 		MarketService:  marketService,
 		OutcomeService: outcomeService,
 	})
+	if err != nil {
+		logrus.Fatal("Error initializing server: ", err)
+	}
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

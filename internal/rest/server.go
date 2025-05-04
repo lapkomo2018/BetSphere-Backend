@@ -1,6 +1,7 @@
 package rest
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -50,12 +51,15 @@ func New(cfg *Config) *Server {
 	}
 }
 
-func (s *Server) Init(cfgV1 v1.Config) *http.Server {
-	v1.New(cfgV1).
-		Init(s.gin.Group("/v1"))
+func (s *Server) Init(cfgV1 v1.Config) (*http.Server, error) {
+	v1Handler, err := v1.New(cfgV1)
+	if err != nil {
+		return nil, errors.Join(err, errors.New("failed to create v1 handler"))
+	}
+	v1Handler.Init(s.gin.Group("/v1"))
 
 	return &http.Server{
 		Addr:    fmt.Sprintf(":%d", s.cfg.Port),
 		Handler: s.gin.Handler(),
-	}
+	}, nil
 }

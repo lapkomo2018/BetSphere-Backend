@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"stavki/external/validate"
 	"stavki/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -27,7 +28,7 @@ type (
 	}
 )
 
-func New(cfg Config) *Handler {
+func New(cfg Config) (*Handler, error) {
 	return &Handler{
 		userService:    cfg.UserService,
 		authService:    cfg.AuthService,
@@ -36,7 +37,7 @@ func New(cfg Config) *Handler {
 		betService:     cfg.BetService,
 		marketService:  cfg.MarketService,
 		outcomeService: cfg.OutcomeService,
-	}
+	}, validate.StructPointersNotNil(cfg)
 }
 
 func (h *Handler) Init(group *gin.RouterGroup) {
