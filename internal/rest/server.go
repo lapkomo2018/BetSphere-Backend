@@ -34,7 +34,12 @@ func New(cfg *Config) *Server {
 	r := gin.New()
 
 	r.Use(gin.Recovery())
-	r.Use(gin.LoggerWithWriter(logrus.StandardLogger().Writer()))
+
+	logger := logrus.New()
+	logger.SetFormatter(&logrus.TextFormatter{
+		DisableTimestamp: true,
+	})
+	r.Use(gin.LoggerWithWriter(logger.Writer()))
 
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"},
