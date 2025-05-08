@@ -9,6 +9,7 @@ import (
 	"stavki/internal/model"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/sirupsen/logrus"
 )
 
 type (
@@ -23,7 +24,7 @@ var (
 	// accessTokenTTL is the time-to-live for access tokens.
 	accessTokenTTL = 15 * time.Minute
 	// refreshTokenTTL is the time-to-live for refresh tokens.
-	refreshTokenTTL = 30 * 24 * time.Hour
+	refreshTokenTTL = 10 * time.Second
 
 	// ErrInvalidToken is returned when the token is invalid.
 	ErrInvalidToken = errors.New("invalid token")
@@ -146,6 +147,17 @@ func (a *Auth) LogoutJWT(ctx context.Context, refreshToken string) error {
 		return err
 	}
 
+	return nil
+}
+
+func (a *Auth) CleanExpiredTokens(ctx context.Context) error {
+	deleted, err := a.jwtDB.DeleteExpired(ctx)
+	if err != nil {
+		logrus.WithError(err).Error("Error cleaning up expired tokens")
+		return err
+	}
+
+	logrus.WithField("count", deleted).Info("Expired tokens deleted")
 	return nil
 }
 

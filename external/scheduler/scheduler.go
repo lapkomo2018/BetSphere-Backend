@@ -1,59 +1,120 @@
 package scheduler
 
 import (
+	"errors"
 	"sync"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 type (
-	Job struct {
-		Interval time.Duration
-		Task     func()
-		ticker   *time.Ticker
-		stop     chan struct{}
-	}
-
 	Scheduler struct {
-		jobs []*Job
-		wg   sync.WaitGroup
+		jobs map[string]*Job
+
+		mu sync.RWMutex
+		wg sync.WaitGroup
 	}
+)
+
+var (
+	ErrJobNotFound = errors.New("job not found")
 )
 
 func New() *Scheduler {
 	return &Scheduler{
-		jobs: make([]*Job, 0),
+		jobs: make(map[string]*Job),
 	}
 }
 
-func (s *Scheduler) AddJob(interval time.Duration, task func()) *Scheduler {
-	job := &Job{
-		Interval: interval,
-		Task:     task,
-		ticker:   time.NewTicker(interval),
-		stop:     make(chan struct{}),
+func (s *Scheduler) Jobs() []*Job {
+	s.mu.RLock()
+	jobs := make([]*Job, 0, len(s.jobs))
+	for _, job := range s.jobs {
+		jobs = append(jobs, job)
 	}
-	s.jobs = append(s.jobs, job)
+	s.mu.RUnlock()
 
-	s.wg.Add(1)
-	go func(j *Job) {
-		defer s.wg.Done()
-		for {
-			select {
-			case <-j.ticker.C:
-				j.Task()
-			case <-j.stop:
-				j.ticker.Stop()
-				return
-			}
+	return jobs
+}
+
+func (s *Scheduler) Job(id string) *Job {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	job, ok := s.jobs[id]
+	if ok {
+		return job
+	}
+
+	return nil
+}
+
+func (s *Scheduler) Add(name string, interval time.Duration, task TaskFunc) *Job {
+	j := newJob(name, interval, task)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.jobs[j.ID()] = j
+
+	return j
+}
+
+func (s *Scheduler) Start(jobID string) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	job, ok := s.jobs[jobID]
+	if !ok {
+		return ErrJobNotFound
+	}
+
+	if err := job.start(func() { s.wg.Add(1) }, s.wg.Done); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Scheduler) Stop(jobID string) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	job, ok := s.jobs[jobID]
+	if !ok {
+		return ErrJobNotFound
+	}
+
+	return job.stop()
+}
+
+func (s *Scheduler) StartAll() {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, job := range s.jobs {
+		if err := job.start(func() { s.wg.Add(1) }, s.wg.Done); err != nil {
+			logrus.WithFields(logrus.Fields{
+				"id":    job.ID(),
+				"job":   job.Name(),
+				"error": err,
+			}).Error("Failed to start job")
 		}
-	}(job)
-
-	return s
+	}
 }
 
 func (s *Scheduler) StopAll() {
-	for _, job := range s.jobs {
-		close(job.stop)
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, j := range s.jobs {
+		if err := j.stop(); err != nil {
+			logrus.WithFields(logrus.Fields{
+				"id":    j.ID(),
+				"job":   j.Name(),
+				"error": err,
+			}).Error("Failed to stop job")
+		}
 	}
 	s.wg.Wait()
 }

@@ -93,7 +93,7 @@ func (e *Event) updateChancesMulti() {
 
 func (e *Event) Print() {
 	println("Event ID:", e.ID)
-	println("Name:", e.Name)
+	println("name:", e.Name)
 	println("Description:", e.Description)
 	println("Start Time:", e.StartTime.String())
 	println("End Time:", e.EndTime.String())

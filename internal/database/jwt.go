@@ -30,3 +30,8 @@ func (j *JWTRepository) Get(ctx context.Context, token string) (*model.JWT, erro
 func (j *JWTRepository) Delete(ctx context.Context, token string) error {
 	return j.db.WithContext(ctx).Where("refresh_token = ?", token).Delete(&model.JWT{}).Error
 }
+
+func (j *JWTRepository) DeleteExpired(ctx context.Context) (count int64, err error) {
+	res := j.db.WithContext(ctx).Where("expires_at < ?", gorm.Expr("NOW()")).Delete(&model.JWT{})
+	return res.RowsAffected, res.Error
+}

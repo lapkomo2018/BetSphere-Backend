@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"stavki/external/hash"
+	"stavki/external/scheduler"
 	"stavki/internal/cache"
 	"stavki/internal/database"
 	"stavki/internal/rest"
@@ -88,6 +89,14 @@ func main() {
 	marketService := service.NewMarket(txProvider, marketDB, r)
 	outcomeService := service.NewOutcome(txProvider, outcomeDB, r)
 
+	s := scheduler.New()
+	s.Add("refresh token clean", 10*time.Second, func() error {
+		logrus.Info("Cleaning up expired tokens")
+		return authService.CleanExpiredTokens(context.Background())
+	})
+
+	s.StartAll()
+
 	srv, err := rest.New(&cfg.Rest).Init(v1.Config{
 		UserService:    userService,
 		AuthService:    authService,
@@ -123,6 +132,12 @@ func main() {
 				"error": err,
 			}).Error("Error stopping server")
 		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		s.StopAll()
 	}()
 
 	wg.Add(1)
