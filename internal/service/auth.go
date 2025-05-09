@@ -150,13 +150,13 @@ func (a *Auth) LogoutJWT(ctx context.Context, refreshToken string) error {
 	return nil
 }
 
-func (a *Auth) CleanExpiredTokens(ctx context.Context) error {
+func (a *Auth) CleanExpiredTokens(ctx context.Context, l log.FieldLogger) error {
 	deleted, err := a.jwtDB.DeleteExpired(ctx)
 	if err != nil {
 		return err
 	}
 
-	log.WithField("count", deleted).Info("Expired tokens deleted")
+	l.WithField("count", deleted).Info("Expired tokens deleted")
 	return nil
 }
 

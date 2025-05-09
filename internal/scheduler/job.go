@@ -26,7 +26,7 @@ type (
 		started bool
 	}
 
-	TaskFunc func() error
+	TaskFunc func(logger log.FieldLogger) error
 )
 
 var (
@@ -171,5 +171,5 @@ func (j *Job) wrapped() {
 		logger.Info("Job finished")
 	}()
 
-	err = j.task()
+	err = j.task(logger)
 }
