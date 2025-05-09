@@ -6,4 +6,3 @@ tmp
 db
 redis
 .air*
-kafka

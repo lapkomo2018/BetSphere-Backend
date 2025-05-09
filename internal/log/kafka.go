@@ -15,7 +15,6 @@ func NewKafkaLogger(brokers []string, topic string) (*Logger, error) {
 		return nil, err
 	}
 	logger := New()
-	logger.SetFormatter(&JsonFormatter{})
 	logger.AddHook(hook)
 	return logger, nil
 }

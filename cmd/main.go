@@ -34,10 +34,6 @@ type Config struct {
 		Password string `env:"PASSWORD"`
 	} `envPrefix:"REDIS_"`
 
-	Kafka struct {
-		Brokers []string `env:"BROKERS" envSeparator:","`
-	} `envPrefix:"KAFKA_"`
-
 	HashSalt  string `env:"HASH_SALT"`
 	JWTSecret string `env:"JWT_SECRET"`
 }
@@ -92,15 +88,12 @@ func main() {
 	marketService := service.NewMarket(txProvider, marketDB, r)
 	outcomeService := service.NewOutcome(txProvider, outcomeDB, r)
 
-	jobLogger, err := log.NewKafkaLogger(cfg.Kafka.Brokers, "job-logs")
-	if err != nil {
-		log.Fatal("Error initializing job logger: ", err)
-	}
+	jobLogger := log.New()
 
 	s := scheduler.New()
-	s.Add(jobLogger, "refresh token clean", 10*time.Second, func() error {
-		log.Info("Cleaning up expired tokens")
-		return authService.CleanExpiredTokens(context.Background())
+	s.Add(jobLogger, "refresh token clean", 10*time.Second, func(l log.FieldLogger) error {
+		l.Info("Cleaning up expired tokens")
+		return authService.CleanExpiredTokens(context.Background(), l)
 	})
 
 	if err := s.StartAll(); err != nil {

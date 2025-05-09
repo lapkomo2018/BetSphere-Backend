@@ -22,14 +22,6 @@ services:
     volumes:
       - redis_volume:/data
 
-  kafka:
-    image: apache/kafka:latest
-    restart: unless-stopped
-    ports:
-      - "9092:9092"
-    volumes:
-      - kafka_volume:/var/lib/kafka/data
-
   service:
     build:
       dockerfile: Dockerfile
@@ -65,9 +57,3 @@ volumes:
       o: bind
       type: none
       device: ./redis
-  kafka_volume:
-    driver: local
-    driver_opts:
-      o: bind
-      type: none
-      device: ./kafka
