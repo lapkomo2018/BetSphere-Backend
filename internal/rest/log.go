@@ -33,12 +33,12 @@ func logMiddleware(logger log.FieldLogger) gin.HandlerFunc {
 
 		status := c.Writer.Status()
 		entry := logger.WithFields(log.Fields{
-			"method":     c.Request.Method,
-			"url":        c.Request.Host + c.Request.URL.String(),
-			"status":     status,
-			"latency":    time.Since(start),
-			"ip":         c.ClientIP(),
-			"user_agent": c.Request.UserAgent(),
+			"method":  c.Request.Method,
+			"url":     c.Request.Host + c.Request.URL.String(),
+			"status":  status,
+			"latency": time.Since(start),
+			"ip":      c.ClientIP(),
+			//"user_agent": c.Request.UserAgent(),
 		})
 
 		if userID, ok := c.Get("userID"); ok {
