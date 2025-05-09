@@ -26,7 +26,7 @@ type (
 	}
 )
 
-func New(cfg *Config) *Server {
+func New(cfg *Config, logger log.FieldLogger) *Server {
 	if strings.ToLower(os.Getenv("ENV")) == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -35,11 +35,7 @@ func New(cfg *Config) *Server {
 
 	r.Use(gin.Recovery())
 
-	logger := log.New()
-	logger.SetFormatter(&log.TextFormatter{
-		DisableTimestamp: true,
-	})
-	r.Use(gin.LoggerWithWriter(logger.Writer()))
+	r.Use(logMiddleware(logger))
 
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"},

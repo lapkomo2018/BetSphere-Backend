@@ -100,7 +100,7 @@ func main() {
 		log.Fatal("Error starting scheduler`s jobs: ", err)
 	}
 
-	srv, err := rest.New(&cfg.Rest).Init(v1.Config{
+	srv, err := rest.New(&cfg.Rest, log.New()).Init(v1.Config{
 		UserService:    userService,
 		AuthService:    authService,
 		ChatService:    chatService,
