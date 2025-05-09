@@ -24,7 +24,7 @@ var (
 	// accessTokenTTL is the time-to-live for access tokens.
 	accessTokenTTL = 15 * time.Minute
 	// refreshTokenTTL is the time-to-live for refresh tokens.
-	refreshTokenTTL = 10 * time.Second
+	refreshTokenTTL = 30 * time.Minute
 
 	// ErrInvalidToken is returned when the token is invalid.
 	ErrInvalidToken = errors.New("invalid token")
