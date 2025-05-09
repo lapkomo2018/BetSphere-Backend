@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
+	"stavki/internal/log"
 	"stavki/internal/rest/v1"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 )
 
 type (
@@ -35,8 +35,8 @@ func New(cfg *Config) *Server {
 
 	r.Use(gin.Recovery())
 
-	logger := logrus.New()
-	logger.SetFormatter(&logrus.TextFormatter{
+	logger := log.New()
+	logger.SetFormatter(&log.TextFormatter{
 		DisableTimestamp: true,
 	})
 	r.Use(gin.LoggerWithWriter(logger.Writer()))

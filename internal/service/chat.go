@@ -6,9 +6,8 @@ import (
 	"time"
 
 	"stavki/internal/database"
+	"stavki/internal/log"
 	"stavki/internal/model"
-
-	"github.com/sirupsen/logrus"
 )
 
 type ChatService struct {
@@ -80,7 +79,7 @@ func (c *ChatService) HandleMessage(ctx context.Context, hub *model.ChatHub, use
 	}
 
 	if err := fn(ctx, hub, msg); err != nil {
-		logrus.WithFields(logrus.Fields{
+		log.WithFields(log.Fields{
 			"userID":  user.ID,
 			"eventID": hub.EventID(),
 			"error":   err,
@@ -97,7 +96,7 @@ func (c *ChatService) AddMessage(ctx context.Context, hub *model.ChatHub, msg mo
 		UpdatedAt: msg.Timestamp,
 	})
 	if err != nil {
-		logrus.WithFields(logrus.Fields{
+		log.WithFields(log.Fields{
 			"userID":  msg.UserID,
 			"eventID": hub.EventID(),
 			"error":   err,
@@ -113,7 +112,7 @@ func (c *ChatService) AddMessage(ctx context.Context, hub *model.ChatHub, msg mo
 func (c *ChatService) EditMessage(ctx context.Context, hub *model.ChatHub, msg model.ChatMessage) error {
 	message, err := c.msgDB.Get(ctx, msg.ID)
 	if err != nil {
-		logrus.WithFields(logrus.Fields{
+		log.WithFields(log.Fields{
 			"userID":  msg.UserID,
 			"eventID": hub.EventID(),
 			"error":   err,
@@ -122,7 +121,7 @@ func (c *ChatService) EditMessage(ctx context.Context, hub *model.ChatHub, msg m
 	}
 
 	if message.UserID != msg.UserID {
-		logrus.WithFields(logrus.Fields{
+		log.WithFields(log.Fields{
 			"userID":    msg.UserID,
 			"eventID":   hub.EventID(),
 			"messageID": msg.ID,
@@ -133,7 +132,7 @@ func (c *ChatService) EditMessage(ctx context.Context, hub *model.ChatHub, msg m
 
 	message.Message = msg.Message
 	if _, err := c.msgDB.Save(ctx, message); err != nil {
-		logrus.WithFields(logrus.Fields{
+		log.WithFields(log.Fields{
 			"userID":  msg.UserID,
 			"eventID": hub.EventID(),
 			"error":   err,
@@ -148,7 +147,7 @@ func (c *ChatService) EditMessage(ctx context.Context, hub *model.ChatHub, msg m
 func (c *ChatService) DeleteMessage(ctx context.Context, hub *model.ChatHub, msg model.ChatMessage) error {
 	message, err := c.msgDB.Get(ctx, msg.ID)
 	if err != nil {
-		logrus.WithFields(logrus.Fields{
+		log.WithFields(log.Fields{
 			"userID":  msg.UserID,
 			"eventID": hub.EventID(),
 			"error":   err,
@@ -157,7 +156,7 @@ func (c *ChatService) DeleteMessage(ctx context.Context, hub *model.ChatHub, msg
 	}
 
 	if message.UserID != msg.UserID {
-		logrus.WithFields(logrus.Fields{
+		log.WithFields(log.Fields{
 			"userID":    msg.UserID,
 			"eventID":   hub.EventID(),
 			"messageID": msg.ID,
@@ -167,7 +166,7 @@ func (c *ChatService) DeleteMessage(ctx context.Context, hub *model.ChatHub, msg
 	}
 
 	if err := c.msgDB.Delete(ctx, message); err != nil {
-		logrus.WithFields(logrus.Fields{
+		log.WithFields(log.Fields{
 			"userID":  msg.UserID,
 			"eventID": hub.EventID(),
 			"error":   err,

@@ -7,10 +7,10 @@ import (
 	"stavki/external/hash"
 	"stavki/internal/cache"
 	"stavki/internal/database"
+	"stavki/internal/log"
 	"stavki/internal/model"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 )
 
 type UserService struct {
@@ -47,7 +47,7 @@ func (u *UserService) Register(ctx context.Context, username, email, password st
 	}
 
 	if err := u.r.SetUser(ctx, user); err != nil {
-		logrus.WithFields(logrus.Fields{
+		log.WithFields(log.Fields{
 			"error": err,
 			"id":    user.ID,
 		}).Error("Error caching user")
@@ -55,7 +55,7 @@ func (u *UserService) Register(ctx context.Context, username, email, password st
 
 	pair, err := u.auth.CreateJWT(ctx, user.ID)
 	if err != nil {
-		logrus.WithFields(logrus.Fields{
+		log.WithFields(log.Fields{
 			"error": err,
 			"id":    user.ID,
 		}).Error("Error creating token pair")
@@ -78,7 +78,7 @@ func (u *UserService) Login(ctx context.Context, login, password string) (*model
 
 	pair, err := u.auth.CreateJWT(ctx, user.ID)
 	if err != nil {
-		logrus.WithFields(logrus.Fields{
+		log.WithFields(log.Fields{
 			"error": err,
 			"id":    user.ID,
 		}).Error("Error creating token pair")
@@ -93,7 +93,7 @@ func (u *UserService) Get(ctx context.Context, id uint64) (*model.User, error) {
 	if err == nil {
 		return user, nil
 	} else if !errors.Is(err, redis.Nil) {
-		logrus.WithFields(logrus.Fields{
+		log.WithFields(log.Fields{
 			"error": err,
 			"id":    id,
 		}).Error("Error getting user from cache")
@@ -105,7 +105,7 @@ func (u *UserService) Get(ctx context.Context, id uint64) (*model.User, error) {
 	}
 
 	if err := u.r.SetUser(ctx, user); err != nil {
-		logrus.WithFields(logrus.Fields{
+		log.WithFields(log.Fields{
 			"error": err,
 			"id":    user.ID,
 		}).Error("Error caching user")

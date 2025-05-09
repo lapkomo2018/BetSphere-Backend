@@ -4,8 +4,9 @@ import (
 	"strconv"
 	"strings"
 
+	"stavki/internal/log"
+
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -118,7 +119,7 @@ func parseOffsetLimit(c *gin.Context) (offset, limit int) {
 		Limit  int `form:"limit"`
 	}
 	if err := c.BindQuery(&body); err != nil {
-		logrus.WithFields(logrus.Fields{
+		log.WithFields(log.Fields{
 			"error": err,
 			"query": c.Request.URL.RawQuery,
 		}).Error("failed to parse query, using default values")

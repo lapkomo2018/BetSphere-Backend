@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -88,33 +89,34 @@ func (s *Scheduler) Stop(jobID string) error {
 	return job.stop()
 }
 
-func (s *Scheduler) StartAll() {
+func (s *Scheduler) StartAll() error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	for _, job := range s.jobs {
 		if err := job.start(func() { s.wg.Add(1) }, s.wg.Done); err != nil {
-			logrus.WithFields(logrus.Fields{
-				"id":    job.ID(),
-				"job":   job.Name(),
-				"error": err,
-			}).Error("Failed to start job")
+			return err
 		}
 	}
+
+	return nil
 }
 
-func (s *Scheduler) StopAll() {
+func (s *Scheduler) StopAll() []error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	var errs []error
 	for _, j := range s.jobs {
 		if err := j.stop(); err != nil {
-			logrus.WithFields(logrus.Fields{
-				"id":    j.ID(),
-				"job":   j.Name(),
-				"error": err,
-			}).Error("Failed to stop job")
+			err = errors.Join(err, fmt.Errorf("`%s job %s stop failed", j.ID(), j.Name()))
+			errs = append(errs, err)
 		}
 	}
+	if len(errs) > 0 {
+		return errs
+	}
+
 	s.wg.Wait()
+	return nil
 }

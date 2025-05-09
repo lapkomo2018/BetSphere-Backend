@@ -7,9 +7,8 @@ import (
 
 	"stavki/internal/cache"
 	"stavki/internal/database"
+	"stavki/internal/log"
 	"stavki/internal/model"
-
-	"github.com/sirupsen/logrus"
 )
 
 type EventService struct {
@@ -61,7 +60,7 @@ func (e *EventService) Get(ctx context.Context, id uint64) (*model.Event, error)
 	}
 
 	if err := e.r.SetEvent(ctx, event); err != nil {
-		logrus.WithFields(logrus.Fields{
+		log.WithFields(log.Fields{
 			"error": err,
 			"id":    event.ID,
 		}).Error("Error caching event")
@@ -102,7 +101,7 @@ func (e *EventService) List(ctx context.Context, offset, limit int) ([]*model.Ev
 		eventsIDs[i] = event.ID
 	}
 	if err := cache.Set(ctx, e.r.R(), cacheKey, eventsIDs, time.Minute); err != nil {
-		logrus.WithFields(logrus.Fields{
+		log.WithFields(log.Fields{
 			"error":  err,
 			"offset": offset,
 			"limit":  limit,
@@ -143,7 +142,7 @@ func (e *EventService) HandleBet(ctx context.Context, bet *model.Bet) error {
 		}
 
 		if err := e.r.SetEvent(ctx, event); err != nil {
-			logrus.WithFields(logrus.Fields{
+			log.WithFields(log.Fields{
 				"error": err,
 				"id":    event.ID,
 			}).Error("Error caching event")

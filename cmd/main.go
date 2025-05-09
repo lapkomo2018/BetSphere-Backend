@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,14 +15,15 @@ import (
 	"stavki/external/scheduler"
 	"stavki/internal/cache"
 	"stavki/internal/database"
+	"stavki/internal/log"
 	"stavki/internal/rest"
-	v1 "stavki/internal/rest/v1"
+	"stavki/internal/rest/v1"
+	"stavki/internal/scheduler"
 	"stavki/internal/service"
 
 	"github.com/caarlos0/env/v11"
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
-	"github.com/sirupsen/logrus"
 )
 
 type Config struct {
@@ -40,25 +40,25 @@ type Config struct {
 }
 
 func main() {
-	logrus.SetFormatter(&logrus.TextFormatter{
+	log.SetFormatter(&log.TextFormatter{
 		FullTimestamp: true,
 	})
 
 	// Load only if not production
 	if strings.ToLower(os.Getenv("ENV")) != "production" {
 		if err := godotenv.Load(".env"); err != nil {
-			logrus.Warn("Error loading .env file: ", err)
+			log.Warn("Error loading .env file: ", err)
 		}
 	}
 
 	var cfg Config
 	if err := env.Parse(&cfg); err != nil {
-		logrus.Fatal("Error parsing environment variables: ", err)
+		log.Fatal("Error parsing environment variables: ", err)
 	}
 
 	db, err := database.Connect(cfg.DB)
 	if err != nil {
-		logrus.Fatal("Error initializing database: ", err)
+		log.Fatal("Error initializing database: ", err)
 	}
 
 	txProvider := database.NewTransactionProvider(db)
@@ -76,7 +76,7 @@ func main() {
 		DB:       0,
 	})
 	if err := rdb.Ping(context.Background()).Err(); err != nil {
-		logrus.Fatal("Error initializing redis: ", err)
+		log.Fatal("Error initializing redis: ", err)
 	}
 
 	r := cache.NewCache(rdb)
@@ -90,8 +90,8 @@ func main() {
 	outcomeService := service.NewOutcome(txProvider, outcomeDB, r)
 
 	s := scheduler.New()
-	s.Add("refresh token clean", 10*time.Second, func() error {
-		logrus.Info("Cleaning up expired tokens")
+	s.Add(jobLogger, "refresh token clean", 10*time.Second, func() error {
+		log.Info("Cleaning up expired tokens")
 		return authService.CleanExpiredTokens(context.Background())
 	})
 
@@ -107,19 +107,19 @@ func main() {
 		OutcomeService: outcomeService,
 	})
 	if err != nil {
-		logrus.Fatal("Error initializing server: ", err)
+		log.Fatal("Error initializing server: ", err)
 	}
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logrus.Fatal("listen: ", err)
+			log.Fatal("listen: ", err)
 		}
 	}()
 
 	exit := make(chan os.Signal, 1)
 	signal.Notify(exit, os.Interrupt, syscall.SIGTERM)
 	<-exit
-	log.Println("Shutdown Server ...")
+	log.Info("Shutdown Server ...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	wg := &sync.WaitGroup{}
@@ -128,7 +128,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 		if err := srv.Shutdown(ctx); err != nil {
-			logrus.WithFields(logrus.Fields{
+			log.WithFields(log.Fields{
 				"error": err,
 			}).Error("Error stopping server")
 		}
@@ -144,7 +144,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 		if err := rdb.Close(); err != nil {
-			logrus.WithFields(logrus.Fields{
+			log.WithFields(log.Fields{
 				"error": err,
 			}).Error("Error stopping redis")
 		}
@@ -157,5 +157,5 @@ func main() {
 	}()
 
 	ctx.Done()
-	log.Println("App exiting")
+	log.Info("App exiting")
 }

@@ -3,7 +3,7 @@ package model
 import (
 	"sync"
 
-	"github.com/sirupsen/logrus"
+	"stavki/internal/log"
 )
 
 type WsClientInterface[T any] interface {
@@ -45,7 +45,7 @@ func (h *WsHub[T]) SendMessage(msg T) {
 
 	for _, client := range clients {
 		if err := client.Send(msg); err != nil {
-			logrus.WithFields(logrus.Fields{
+			log.WithFields(log.Fields{
 				"error": err,
 			}).Error("failed to send message to client. closing client")
 			client.Close()

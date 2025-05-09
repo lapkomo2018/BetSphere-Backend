@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"stavki/internal/database"
+	"stavki/internal/log"
 	"stavki/internal/model"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/sirupsen/logrus"
 )
 
 type (
@@ -153,11 +153,10 @@ func (a *Auth) LogoutJWT(ctx context.Context, refreshToken string) error {
 func (a *Auth) CleanExpiredTokens(ctx context.Context) error {
 	deleted, err := a.jwtDB.DeleteExpired(ctx)
 	if err != nil {
-		logrus.WithError(err).Error("Error cleaning up expired tokens")
 		return err
 	}
 
-	logrus.WithField("count", deleted).Info("Expired tokens deleted")
+	log.WithField("count", deleted).Info("Expired tokens deleted")
 	return nil
 }
 
