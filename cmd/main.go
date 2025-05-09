@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"stavki/external/hash"
-	"stavki/external/scheduler"
 	"stavki/internal/cache"
 	"stavki/internal/database"
 	"stavki/internal/log"
@@ -34,6 +33,10 @@ type Config struct {
 		Port     string `env:"PORT"`
 		Password string `env:"PASSWORD"`
 	} `envPrefix:"REDIS_"`
+
+	Kafka struct {
+		Brokers []string `env:"BROKERS" envSeparator:","`
+	} `envPrefix:"KAFKA_"`
 
 	HashSalt  string `env:"HASH_SALT"`
 	JWTSecret string `env:"JWT_SECRET"`
@@ -89,13 +92,20 @@ func main() {
 	marketService := service.NewMarket(txProvider, marketDB, r)
 	outcomeService := service.NewOutcome(txProvider, outcomeDB, r)
 
+	jobLogger, err := log.NewKafkaLogger(cfg.Kafka.Brokers, "job-logs")
+	if err != nil {
+		log.Fatal("Error initializing job logger: ", err)
+	}
+
 	s := scheduler.New()
 	s.Add(jobLogger, "refresh token clean", 10*time.Second, func() error {
 		log.Info("Cleaning up expired tokens")
 		return authService.CleanExpiredTokens(context.Background())
 	})
 
-	s.StartAll()
+	if err := s.StartAll(); err != nil {
+		log.Fatal("Error starting scheduler`s jobs: ", err)
+	}
 
 	srv, err := rest.New(&cfg.Rest).Init(v1.Config{
 		UserService:    userService,

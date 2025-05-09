@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"stavki/internal/log"
 )
 
 type (
@@ -51,8 +51,8 @@ func (s *Scheduler) Job(id string) *Job {
 	return nil
 }
 
-func (s *Scheduler) Add(name string, interval time.Duration, task TaskFunc) *Job {
-	j := newJob(name, interval, task)
+func (s *Scheduler) Add(logger log.FieldLogger, name string, interval time.Duration, task TaskFunc) *Job {
+	j := newJob(logger, name, interval, task)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()

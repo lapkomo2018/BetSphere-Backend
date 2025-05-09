@@ -5,8 +5,9 @@ import (
 	"sync"
 	"time"
 
+	"stavki/internal/log"
+
 	"github.com/google/uuid"
-	"github.com/sirupsen/logrus"
 )
 
 type (
@@ -18,6 +19,8 @@ type (
 		task     TaskFunc
 		ticker   *time.Ticker
 		stopCh   chan struct{}
+
+		logger log.FieldLogger
 
 		mu      sync.RWMutex
 		started bool
@@ -31,14 +34,27 @@ var (
 	ErrJobNotStarted = errors.New("job not started")
 )
 
-func newJob(name string, interval time.Duration, task TaskFunc) *Job {
+func newJob(logger log.FieldLogger, name string, interval time.Duration, task TaskFunc) *Job {
+	id := uuid.New().String()
+
+	if logger == nil {
+		logger = log.New()
+	}
+
+	logger = logger.WithFields(log.Fields{
+		"job_id":   id,
+		"name":     name,
+		"interval": interval,
+	})
+
 	return &Job{
-		id:       uuid.New().String(),
+		id:       id,
 		name:     name,
 		interval: interval,
 		task:     task,
 		ticker:   time.NewTicker(interval),
 		stopCh:   make(chan struct{}),
+		logger:   logger,
 	}
 }
 
@@ -56,6 +72,7 @@ func (j *Job) ChangeName(name string) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 	j.name = name
+	j.logger = j.logger.WithField("name", name)
 }
 
 func (j *Job) Interval() time.Duration {
@@ -72,6 +89,7 @@ func (j *Job) ChangeInterval(interval time.Duration) {
 		j.ticker.Stop()
 	}
 	j.ticker = time.NewTicker(interval)
+	j.logger.WithField("interval", j.interval)
 }
 
 func (j *Job) LastRun() time.Time {
@@ -131,32 +149,26 @@ func (j *Job) stop() error {
 func (j *Job) wrapped() {
 	start := time.Now()
 	j.mu.Lock()
+	logger := j.logger
 	j.lastRun = start
-	fields := logrus.Fields{
-		"id":       j.id,
-		"job":      j.name,
-		"interval": j.interval,
-	}
 	j.mu.Unlock()
-	logrus.WithFields(fields).Info("Job started")
+	logger.Info("Job started")
 
 	var err error
 	defer func() {
-		fields["duration"] = time.Since(start)
+		logger = logger.WithField("duration", time.Since(start).String())
 
 		if r := recover(); r != nil {
-			fields["panic"] = r
-			logrus.WithFields(fields).Error("Job panicked")
+			logger.WithField("panic", r).Error("Job panicked")
 			return
 		}
 
 		if err != nil {
-			fields["error"] = err
-			logrus.WithFields(fields).Error("Job failed")
+			logger.WithError(err).Error("Job failed")
 			return
 		}
 
-		logrus.WithFields(fields).Info("Job finished")
+		logger.Info("Job finished")
 	}()
 
 	err = j.task()
