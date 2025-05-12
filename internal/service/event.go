@@ -50,22 +50,18 @@ func (e *EventService) Create(ctx context.Context, event *model.Event) (*model.E
 }
 
 func (e *EventService) Get(ctx context.Context, id uint64) (*model.Event, error) {
-	if event, err := e.r.Event(ctx, id); err == nil {
-		return event, nil
-	}
+	return cache.Run[*model.Event](
+		ctx,
+		e.r.R(),
+		cache.EventCacheKey(id),
+		cache.EventCacheTTL,
+		func(event *model.Event) (*model.Event, error) {
+			if event != nil {
+				return event, nil
+			}
 
-	event, err := e.eventDB.Get(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := e.r.SetEvent(ctx, event); err != nil {
-		log.WithFields(log.Fields{
-			"error": err,
-			"id":    event.ID,
-		}).Error("Error caching event")
-	}
-	return event, nil
+			return e.eventDB.Get(ctx, id)
+		})
 }
 
 func (e *EventService) List(ctx context.Context, offset, limit int) ([]*model.Event, error) {

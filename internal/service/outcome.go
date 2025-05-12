@@ -23,35 +23,31 @@ func NewOutcome(txProvider database.TransactionProvider, outcomeDB *database.Out
 }
 
 func (o *OutcomeService) Get(ctx context.Context, id uint64) (*model.Outcome, error) {
-	if outcome, err := o.r.Outcome(ctx, id); err == nil {
-		return outcome, nil
-	}
+	return cache.Run[*model.Outcome](
+		ctx,
+		o.r.R(),
+		cache.OutcomeCacheKey(id),
+		cache.OutcomeCacheTTL,
+		func(outcome *model.Outcome) (*model.Outcome, error) {
+			if outcome != nil {
+				return outcome, nil
+			}
 
-	outcome, err := o.outcomeDB.Get(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := o.r.SetOutcome(ctx, outcome); err != nil {
-		return nil, err
-	}
-
-	return outcome, nil
+			return o.outcomeDB.Get(ctx, id)
+		})
 }
 
 func (o *OutcomeService) History(ctx context.Context, id uint64, offset, limit int) ([]*model.OutcomeHistory, error) {
-	if outcomeHistory, err := o.r.OutcomeHistory(ctx, id, offset, limit); err == nil {
-		return outcomeHistory, nil
-	}
+	return cache.Run[[]*model.OutcomeHistory](
+		ctx,
+		o.r.R(),
+		cache.OutcomeHistoryCacheKey(id, offset, limit),
+		cache.OutcomeCacheTTL,
+		func(outcomeHistory []*model.OutcomeHistory) ([]*model.OutcomeHistory, error) {
+			if outcomeHistory != nil {
+				return outcomeHistory, nil
+			}
 
-	outcomes, err := o.outcomeDB.History(ctx, id, offset, limit)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := o.r.SetOutcomeHistory(ctx, id, outcomes, offset, limit); err != nil {
-		return nil, err
-	}
-
-	return outcomes, nil
+			return o.outcomeDB.History(ctx, id, offset, limit)
+		})
 }

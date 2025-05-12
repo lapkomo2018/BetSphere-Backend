@@ -3,8 +3,11 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
+
+	"stavki/internal/log"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -52,4 +55,23 @@ func Get[T any](ctx context.Context, r *redis.Client, key string) (T, error) {
 	}
 
 	return value, nil
+}
+
+// Run is a utility function that retrieves an item from the cache, applies a function to it, and then stores the result back in the cache.
+func Run[T any](ctx context.Context, r *redis.Client, key string, ttl time.Duration, fn func(T) (T, error)) (T, error) {
+	item, err := Get[T](ctx, r, key)
+	if err != nil && !errors.Is(err, redis.Nil) {
+		log.WithError(err).Warn("Error getting item from cache")
+	}
+
+	item, err = fn(item)
+	if err != nil {
+		return item, err
+	}
+
+	if err := Set(ctx, r, key, item, ttl); err != nil {
+		log.WithError(err).Warn("Error setting item in cache")
+	}
+
+	return item, nil
 }

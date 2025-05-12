@@ -9,8 +9,6 @@ import (
 	"stavki/internal/database"
 	"stavki/internal/log"
 	"stavki/internal/model"
-
-	"github.com/redis/go-redis/v9"
 )
 
 type UserService struct {
@@ -89,26 +87,16 @@ func (u *UserService) Login(ctx context.Context, login, password string) (*model
 }
 
 func (u *UserService) Get(ctx context.Context, id uint64) (*model.User, error) {
-	user, err := u.r.User(ctx, id)
-	if err == nil {
-		return user, nil
-	} else if !errors.Is(err, redis.Nil) {
-		log.WithFields(log.Fields{
-			"error": err,
-			"id":    id,
-		}).Error("Error getting user from cache")
-	}
+	return cache.Run[*model.User](
+		ctx,
+		u.r.R(),
+		cache.UserCacheKey(id),
+		cache.UserCacheTTL,
+		func(user *model.User) (*model.User, error) {
+			if user != nil {
+				return user, nil
+			}
 
-	user, err = u.userDB.Get(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := u.r.SetUser(ctx, user); err != nil {
-		log.WithFields(log.Fields{
-			"error": err,
-			"id":    user.ID,
-		}).Error("Error caching user")
-	}
-	return user, nil
+			return u.userDB.Get(ctx, id)
+		})
 }

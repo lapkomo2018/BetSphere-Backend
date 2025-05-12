@@ -23,35 +23,31 @@ func NewMarket(txProvider database.TransactionProvider, marketDB *database.Marke
 }
 
 func (m *MarketService) Get(ctx context.Context, id uint64) (*model.Market, error) {
-	if market, err := m.r.Market(ctx, id); err == nil {
-		return market, nil
-	}
+	return cache.Run[*model.Market](
+		ctx,
+		m.r.R(),
+		cache.MarketCacheKey(id),
+		cache.MarketCacheTTL,
+		func(market *model.Market) (*model.Market, error) {
+			if market != nil {
+				return market, nil
+			}
 
-	market, err := m.marketDB.Get(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := m.r.SetMarket(ctx, market); err != nil {
-		return nil, err
-	}
-
-	return market, nil
+			return m.marketDB.Get(ctx, id)
+		})
 }
 
 func (m *MarketService) History(ctx context.Context, id uint64, offset, limit int) ([]*model.MarketChancesHistory, error) {
-	if marketHistory, err := m.r.MarketHistory(ctx, id, offset, limit); err == nil {
-		return marketHistory, nil
-	}
+	return cache.Run[[]*model.MarketChancesHistory](
+		ctx,
+		m.r.R(),
+		cache.MarketHistoryCacheKey(id, offset, limit),
+		cache.MarketCacheTTL,
+		func(marketHistory []*model.MarketChancesHistory) ([]*model.MarketChancesHistory, error) {
+			if marketHistory != nil {
+				return marketHistory, nil
+			}
 
-	markets, err := m.marketDB.History(ctx, id, offset, limit)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := m.r.SetMarketHistory(ctx, id, markets, offset, limit); err != nil {
-		return nil, err
-	}
-
-	return markets, nil
+			return m.marketDB.History(ctx, id, offset, limit)
+		})
 }
