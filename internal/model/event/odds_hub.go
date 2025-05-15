@@ -10,7 +10,7 @@ type (
 	}
 
 	OddsMessage struct {
-		Markets []*marketOdds
+		Markets []*marketOdds `json:"markets"`
 	}
 
 	marketOdds struct {
