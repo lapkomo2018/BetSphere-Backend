@@ -9,6 +9,8 @@ import (
 	"stavki/internal/database"
 	"stavki/internal/log"
 	"stavki/internal/model"
+	"stavki/internal/model/client"
+	"stavki/internal/model/event"
 )
 
 type EventService struct {
@@ -16,6 +18,8 @@ type EventService struct {
 	eventDB     *database.EventRepository
 	r           *cache.Cache
 	userService *UserService
+
+	hubs map[uint64]*event.OddsHub
 }
 
 // NewEvent creates a new EventService service instance.
@@ -25,6 +29,7 @@ func NewEvent(txProvider database.TransactionProvider, eventDB *database.EventRe
 		eventDB:     eventDB,
 		r:           r,
 		userService: &userService,
+		hubs:        make(map[uint64]*event.OddsHub),
 	}
 }
 
@@ -107,7 +112,8 @@ func (e *EventService) List(ctx context.Context, offset, limit int) ([]*model.Ev
 }
 
 func (e *EventService) HandleBet(ctx context.Context, bet *model.Bet) error {
-	return e.txProvider.Transact(func(a database.Adapters) error {
+	var event *model.Event
+	if err := e.txProvider.Transact(func(a database.Adapters) error {
 		if _, err := a.UserRepository.AdjustBalance(ctx, bet.UserID, -bet.TotalAmount()); err != nil {
 			return err
 		}
@@ -120,7 +126,8 @@ func (e *EventService) HandleBet(ctx context.Context, bet *model.Bet) error {
 			return err
 		}
 
-		event, err := a.EventRepository.Get(ctx, bet.EventID)
+		var err error
+		event, err = a.EventRepository.Get(ctx, bet.EventID)
 		if err != nil {
 			return err
 		}
@@ -144,5 +151,33 @@ func (e *EventService) HandleBet(ctx context.Context, bet *model.Bet) error {
 			}).Error("Error caching event")
 		}
 		return nil
+	}); err != nil {
+		return err
+	}
+
+	e.broadcastOddsUpdate(event)
+	return nil
+}
+
+func (e *EventService) ConnectOddsClient(ctx context.Context, eventID uint64, client *client.WClient[event.OddsMessage]) error {
+	if _, exists := e.hubs[eventID]; !exists {
+		e.hubs[eventID] = event.NewOddsHub(eventID)
+	}
+
+	hub := e.hubs[eventID]
+	hub.AddClient(client)
+
+	return client.OnClose(func() {
+		hub.RemoveClient(client)
 	})
+}
+
+func (e *EventService) broadcastOddsUpdate(event *model.Event) {
+	hub, exists := e.hubs[event.ID]
+	if !exists {
+		log.WithField("event_id", event.ID).Info("odds hub not found, skipping broadcast")
+		return
+	}
+
+	hub.SendMessage(event.Markets)
 }

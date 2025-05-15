@@ -8,25 +8,26 @@ import (
 	"stavki/internal/database"
 	"stavki/internal/log"
 	"stavki/internal/model"
+	"stavki/internal/model/chat"
 )
 
 type ChatService struct {
 	msgDB       *database.MessageRepository
 	userService *UserService
-	hubs        map[uint64]*model.ChatHub
+	hubs        map[uint64]*chat.Hub
 }
 
 func NewChatService(msgDB *database.MessageRepository, userService *UserService) *ChatService {
 	return &ChatService{
 		msgDB:       msgDB,
 		userService: userService,
-		hubs:        make(map[uint64]*model.ChatHub),
+		hubs:        make(map[uint64]*chat.Hub),
 	}
 }
 
-func (c *ChatService) HandleChatConnection(ctx context.Context, client *model.ChatClient, eventID uint64) error {
+func (c *ChatService) HandleChatConnection(ctx context.Context, client *chat.Client, eventID uint64) error {
 	if _, exists := c.hubs[eventID]; !exists {
-		c.hubs[eventID] = model.NewChatHub(eventID)
+		c.hubs[eventID] = chat.NewHub(eventID)
 	}
 
 	user, err := c.userService.Get(ctx, client.UserID())
@@ -36,19 +37,19 @@ func (c *ChatService) HandleChatConnection(ctx context.Context, client *model.Ch
 	}
 
 	hub := c.hubs[eventID]
-	hub.AddClient(client)
+	hub.AddClient(client.WClient)
 
 	go func() {
 		defer func() {
 			client.Close()
-			hub.RemoveClient(client)
+			hub.RemoveClient(client.WClient)
 		}()
 
 		for {
 			select {
 			case <-client.Done():
 				return
-			case msg := <-client.HandleChan():
+			case msg := <-client.ReadChan():
 				go c.HandleMessage(ctx, hub, user, msg)
 			}
 		}
@@ -57,23 +58,23 @@ func (c *ChatService) HandleChatConnection(ctx context.Context, client *model.Ch
 	return nil
 }
 
-func (c *ChatService) HandleMessage(ctx context.Context, hub *model.ChatHub, user *model.User, msg model.ChatMessage) {
+func (c *ChatService) HandleMessage(ctx context.Context, hub *chat.Hub, user *model.User, msg chat.Message) {
 	// Fill in the message details
 	msg.Username = user.Username
 	msg.UserID = user.ID
 	msg.Timestamp = time.Now()
 
 	// Choose the appropriate function based on the action
-	var fn func(ctx context.Context, hub *model.ChatHub, msg model.ChatMessage) error
+	var fn func(ctx context.Context, hub *chat.Hub, msg chat.Message) error
 	switch msg.Action {
-	case model.ChatActionAddMessage:
+	case chat.ActionAddMessage:
 		fn = c.AddMessage
-	case model.ChatActionEditMessage:
+	case chat.ActionEditMessage:
 		fn = c.EditMessage
-	case model.ChatActionDeleteMessage:
+	case chat.ActionDeleteMessage:
 		fn = c.DeleteMessage
 	default:
-		fn = func(ctx context.Context, hub *model.ChatHub, msg model.ChatMessage) error {
+		fn = func(ctx context.Context, hub *chat.Hub, msg chat.Message) error {
 			return errors.New("unknown action")
 		}
 	}
@@ -87,7 +88,7 @@ func (c *ChatService) HandleMessage(ctx context.Context, hub *model.ChatHub, use
 	}
 }
 
-func (c *ChatService) AddMessage(ctx context.Context, hub *model.ChatHub, msg model.ChatMessage) error {
+func (c *ChatService) AddMessage(ctx context.Context, hub *chat.Hub, msg chat.Message) error {
 	message, err := c.msgDB.Create(ctx, &model.Message{
 		EventID:   hub.EventID(),
 		UserID:    msg.UserID,
@@ -109,7 +110,7 @@ func (c *ChatService) AddMessage(ctx context.Context, hub *model.ChatHub, msg mo
 	return nil
 }
 
-func (c *ChatService) EditMessage(ctx context.Context, hub *model.ChatHub, msg model.ChatMessage) error {
+func (c *ChatService) EditMessage(ctx context.Context, hub *chat.Hub, msg chat.Message) error {
 	message, err := c.msgDB.Get(ctx, msg.ID)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -144,7 +145,7 @@ func (c *ChatService) EditMessage(ctx context.Context, hub *model.ChatHub, msg m
 	return nil
 }
 
-func (c *ChatService) DeleteMessage(ctx context.Context, hub *model.ChatHub, msg model.ChatMessage) error {
+func (c *ChatService) DeleteMessage(ctx context.Context, hub *chat.Hub, msg chat.Message) error {
 	message, err := c.msgDB.Get(ctx, msg.ID)
 	if err != nil {
 		log.WithFields(log.Fields{
