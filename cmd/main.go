@@ -91,7 +91,7 @@ func main() {
 	jobLogger := log.New()
 
 	s := scheduler.New()
-	s.Add(jobLogger, "refresh token clean", 10*time.Second, func(l log.FieldLogger) error {
+	s.Add(jobLogger, "refresh token clean", 10*time.Minute, func(l log.FieldLogger) error {
 		l.Info("Cleaning up expired tokens")
 		return authService.CleanExpiredTokens(context.Background(), l)
 	})
