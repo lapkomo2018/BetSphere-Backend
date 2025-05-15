@@ -1,10 +1,14 @@
 package v1
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"time"
 
 	"stavki/internal/model"
+	"stavki/internal/model/client"
+	"stavki/internal/model/event"
 
 	"github.com/gin-gonic/gin"
 )
@@ -19,6 +23,7 @@ func (h *Handler) initEvents(group *gin.RouterGroup) {
 		id.GET("", h.getEvent)
 		id.GET("/chat", h.authMiddleware, h.chatConn)
 		id.POST("/bet", h.authMiddleware, h.placeBet)
+		id.GET("/odds/stream", h.oddsStream)
 	}
 }
 
@@ -170,4 +175,40 @@ func (h *Handler) placeBet(c *gin.Context) {
 	}
 
 	c.JSON(201, bet)
+}
+
+func (h *Handler) oddsStream(c *gin.Context) {
+	eventID := c.GetUint64(eventIDKey)
+	if eventID == 0 {
+		c.JSON(400, gin.H{"error": "invalid event ID"})
+		return
+	}
+
+	client := client.NewWClient[event.OddsMessage]()
+	defer client.Close()
+	if err := h.eventService.ConnectOddsClient(c.Request.Context(), eventID, client); err != nil {
+		c.JSON(500, gin.H{"error": "failed to connect to event: " + err.Error()})
+		return
+	}
+
+	c.Stream(func(w io.Writer) bool {
+		for {
+			select {
+			case msg, ok := <-client.WriteChan():
+				if !ok {
+					return false
+				}
+
+				payload, err := json.Marshal(msg)
+				if err != nil {
+					return false
+				}
+
+				c.SSEvent("message", payload)
+				return true
+			case <-c.Request.Context().Done():
+				return false
+			}
+		}
+	})
 }
