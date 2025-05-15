@@ -3,7 +3,7 @@ package v1
 import (
 	"net/http"
 
-	"stavki/internal/model"
+	"stavki/internal/model/chat"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -33,7 +33,7 @@ func (h *Handler) chatConn(c *gin.Context) {
 		return
 	}
 
-	client := model.NewChatClient(userID)
+	client := chat.NewClient(userID)
 	if err := h.chatService.HandleChatConnection(c, client, eventID); err != nil {
 		c.JSON(500, gin.H{"error": "failed to handle chat connection"})
 		return
@@ -61,7 +61,7 @@ func (h *Handler) chatConn(c *gin.Context) {
 			select {
 			case <-client.Done():
 				return
-			case msg := <-client.SendChan():
+			case msg := <-client.WriteChan():
 				if err := conn.WriteJSON(msg); err != nil {
 					return
 				}
@@ -74,12 +74,12 @@ func (h *Handler) chatConn(c *gin.Context) {
 		defer client.Close()
 
 		for {
-			var msg model.ChatMessage
+			var msg chat.Message
 			if err := conn.ReadJSON(&msg); err != nil {
 				return
 			}
 
-			if err := client.Handle(msg); err != nil {
+			if err := client.Read(msg); err != nil {
 				return
 			}
 		}
