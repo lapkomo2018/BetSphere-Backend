@@ -1,6 +1,6 @@
 services:
   psql:
-    image: postgres:latest
+    image: postgres:17
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB_DATABASE}
